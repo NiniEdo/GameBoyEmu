@@ -1,5 +1,7 @@
-﻿using GameBoyEmu;
-using RomNamespace;
+﻿using GameBoyEmu.RomNamespace;
+using GameBoyEmu;
+using GameBoyEmu.CpuNamespace;
+using System.Runtime.CompilerServices;
 
 namespace GameBoyEmu
 {
@@ -7,8 +9,8 @@ namespace GameBoyEmu
     {
         static void Main(string[] args)
         {
-            Rom rom = Rom.GetRom();
-            rom.loadFromCartrige();
+            Cpu cpu = Cpu.GetCpu();
+            cpu.fetch();
         }
     }
 }
