@@ -10,7 +10,7 @@ namespace GameBoyEmu
         static void Main(string[] args)
         {
             Cpu cpu = Cpu.GetCpu();
-            cpu.fetch();
+            cpu.execute();
         }
     }
 }

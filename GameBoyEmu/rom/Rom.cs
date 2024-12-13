@@ -14,7 +14,7 @@ namespace GameBoyEmu.RomNamespace
     {
         private Logger logger = LogManager.GetCurrentClassLogger();
         private static Rom _rom = new Rom();
-        private byte[]? romDump; // Make romDump nullable
+        private byte[]? romDump; 
 
         private Rom() { }
         public static Rom GetRom()
