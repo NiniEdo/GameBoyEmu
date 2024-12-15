@@ -8,17 +8,23 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GameBoyEmu.memory
+namespace GameBoyEmu.MemoryNamespace
 {
     internal class Memory
     {
+        const int ROM_MAX_ADDRESS = 0x7FFF;
+        public double romMaxAddress
+        {
+            get => ROM_MAX_ADDRESS;
+        }
+
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private static Memory _memory = new Memory();
         private byte[] _memoryMap = new byte[0xFFFF];
+        public byte[] memoryMap { get => _memoryMap; set => _memoryMap = value; }
 
         private byte[] _romDump = Array.Empty<byte>();
         Rom _rom = Rom.GetRom();
-
 
         public static Memory GetMemory()
         {
@@ -35,14 +41,13 @@ namespace GameBoyEmu.memory
             {
                 _logger.Fatal("Error: " + CAex.Message);
             }
-            setRomBankZero();
+            initializeRom();
         }
 
-        public byte[] MemoryMap { get => _memoryMap; set => _memoryMap = value; }
 
-        private void setRomBankZero()
+        private void initializeRom()
         {
-            for (int i = 0; i < 0x3FFF; i++)
+            for (int i = 0; i < 0x7FFF; i++)
             {
                 _memoryMap[i] = _romDump[i];
             }

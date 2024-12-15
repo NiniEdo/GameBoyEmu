@@ -1,6 +1,7 @@
 ﻿using GameBoyEmu.Exceptions;
 using NLog;
 using GameBoyEmu.RomNamespace;
+using GameBoyEmu.MemoryNamespace;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,7 @@ namespace GameBoyEmu.CpuNamespace
     {
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private static Cpu _cpu = new Cpu();
+        private Memory _memory = Memory.GetMemory();
 
         struct Instruction
         {
@@ -29,7 +31,6 @@ namespace GameBoyEmu.CpuNamespace
                 Name = name;
                 Execute = execute;
             }
-
         }
 
         struct Flags
@@ -95,7 +96,6 @@ namespace GameBoyEmu.CpuNamespace
 
         byte _instructionRegister;
 
-
         private static readonly Dictionary<byte, Instruction> _instructionSetBlockZero = new Dictionary<byte, Instruction>
         {
             //last 4 bits -> Instruction
@@ -118,7 +118,28 @@ namespace GameBoyEmu.CpuNamespace
                     }
                 })
             },
-            //{ 0x02, new Instruction("LD (BC), A", () => { /* LD (BC), A implementation */ }) },
+            { 0b0010, new Instruction("ld [r16mem], A", () =>
+                {
+
+                    byte registerCode = (byte)((_cpu._instructionRegister & 0b0011_0000) >> 4);
+
+                    if (_16bitsRegistries.TryGetValue(registerCode, out byte[]? register))
+                    {
+                        ushort memoryPointer = (ushort)((register[0] << 8) | register[1]);
+                        _cpu._memory.memoryMap[memoryPointer] = _A;
+                    }
+                    else
+                    {
+                        _cpu._logger.Fatal("Invalid 16-bit register code.");
+                    }
+
+                })
+            },
+            { 0b1010, new Instruction("ld A, [r16mem]", () =>
+                {
+
+                })
+            },
         };
 
         private static readonly Dictionary<byte, Dictionary<byte, Instruction>> _instructionSetBlocks = new Dictionary<byte, Dictionary<byte, Instruction>>
@@ -127,7 +148,7 @@ namespace GameBoyEmu.CpuNamespace
         };
 
         private Cpu()
-        {}
+        { }
 
         public static Cpu GetCpu()
         {
@@ -138,13 +159,13 @@ namespace GameBoyEmu.CpuNamespace
         {
             ushort pcValue = (ushort)((_PC[0] << 8) | _PC[1]);
 
-            if (pcValue >= _romDump.Length)
+            if (pcValue >= _memory.romMaxAddress)
             {
                 _logger.Fatal("Attempted to fetch beyond ROM boundaries.");
                 throw new IndexOutOfRangeException("Program Counter exceeded ROM boundaries.");
             }
 
-            byte nextByte = _romDump[pcValue];
+            byte nextByte = _memory.memoryMap[pcValue];
 
             pcValue++;
 
@@ -179,16 +200,8 @@ namespace GameBoyEmu.CpuNamespace
 
         public void execute()
         {
-            if (_romDump.Length == 0)
-            {
-                _logger.Fatal("ROM dump is null. Cannot fetch instructions.");
-                return;
-            }
-
-            //_romDump = new byte[] { 0x01, 0x34, 0x12, 0xFF, 0xA0, 0x5B, 0x9C, 0x00 };
-
             ushort pcValue = (ushort)((_PC[0] << 8) | _PC[1]);
-            while (pcValue < _romDump.Length)
+            while (pcValue < _memory.romMaxAddress)
             {
                 byte data = fetch();
                 _instructionRegister = data;
