@@ -12,4 +12,10 @@ namespace GameBoyEmu.Exceptions
         public CartridgeException(string message)
             : base(message) { }
     }
+    public class InstructionExcecutionException : Exception
+    {
+        public InstructionExcecutionException() { }
+        public InstructionExcecutionException(string message)
+            : base(message) { }
+    }
 }
