@@ -12,16 +12,8 @@ namespace GameBoyEmu.MemoryNamespace
 {
     internal class Memory
     {
-        const int ROM_MAX_ADDRESS = 0x7FFF;
-        const int MEM_MAX_ADDRESS = 0xFFFF;
-        public double romMaxAddress
-        {
-            get => ROM_MAX_ADDRESS;
-        }
-        public double memMaxAddress
-        {
-            get => MEM_MAX_ADDRESS;
-        }
+        public const int ROM_MAX_ADDRESS = 0x7FFF;
+        public const int MEM_MAX_ADDRESS = 0xFFFF;
 
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private static Memory _memory = new Memory();
