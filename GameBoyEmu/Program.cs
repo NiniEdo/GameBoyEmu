@@ -11,7 +11,7 @@ namespace GameBoyEmu
         //TODO: add boot rom and change the initialization of PC to 0000
         static void Main(string[] args)
         {
-            Cpu cpu = Cpu.GetCpu();
+            Cpu cpu = new Cpu();
             cpu.Execute();
         }
     }
