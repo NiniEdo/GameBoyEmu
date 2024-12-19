@@ -18,25 +18,52 @@ namespace GameBoyEmu.FlagsHelperNamespace
             int intValue = result == 0 ? 0 : 1;
             _AF[1] = (byte)((_AF[1] & 0b0111_1111) | (intValue << 7));
         }
+
         public void setSubtractionFlag(bool value)
         {
             int intValue = value ? 1 : 0;
             _AF[1] = (byte)((_AF[1] & 0b1011_1111) | (intValue << 6));
         }
-        public void setHalfCarryFlag(byte operand1, byte operand2, bool isAddition)
+
+        public void SetHalfCarryFlag(ushort operand1, ushort operand2, bool isAddition, bool is16Bit)
         {
             bool halfCarry;
-
-            if (isAddition)
+            if (is16Bit)
             {
-                halfCarry = ((operand1 & 0x0F) + (operand2 & 0x0F)) > 0x0F;
+                if (isAddition)
+                {
+                    halfCarry = (((operand1 & 0x0FFF) + (operand2 & 0x0FFF)) & 0x1000) != 0;
+                }
+                else
+                {
+                    halfCarry = (operand1 & 0x0FFF) < (operand2 & 0x0FFF);
+                }
             }
             else
             {
-                halfCarry = (operand1 & 0x0F) < (operand2 & 0x0F);
+                byte op1 = (byte)operand1;
+                byte op2 = (byte)operand2;
+
+                if (isAddition)
+                {
+                    halfCarry = (((op1 & 0x0F) + (op2 & 0x0F)) & 0x10) != 0;
+                }
+                else
+                {
+                    halfCarry = (op1 & 0x0F) < (op2 & 0x0F);
+                }
             }
-            _AF[1] = (byte)((_AF[1] & 0b1101_1111) | (halfCarry ? 1 : 0) << 5);
+
+            if (halfCarry)
+            {
+                _AF[1] |= 0b0010_0000;
+            }
+            else
+            {
+                _AF[1] &= 0b1101_1111;
+            }
         }
+
 
         public void setCarryFlag(int value, bool is16bits, bool carryOut)
         {

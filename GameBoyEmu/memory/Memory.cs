@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace GameBoyEmu.MemoryNamespace
 {
-    internal class Memory
+    public class Memory
     {
         public const int ROM_MAX_ADDRESS = 0x7FFF;
         public const int MEM_MAX_ADDRESS = 0xFFFF;
