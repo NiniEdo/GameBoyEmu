@@ -9,8 +9,8 @@ namespace GameBoyEmu
     {
         static void Main(string[] args)
         {
-            Cpu cpu = new Cpu();
-            cpu.Execute();
+            GameBoy _gameboy = new GameBoy();
+            _gameboy.Start();
             
         }
     }

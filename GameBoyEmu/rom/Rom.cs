@@ -16,11 +16,7 @@ namespace GameBoyEmu.RomNamespace
         private static Rom _rom = new Rom();
         private byte[]? romDump; 
 
-        private Rom() { }
-        public static Rom GetRom()
-        {
-            return _rom;
-        }
+        public Rom() { }
 
         public byte[] loadFromCartridge()
         {

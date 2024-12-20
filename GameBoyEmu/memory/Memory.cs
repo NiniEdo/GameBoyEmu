@@ -16,19 +16,14 @@ namespace GameBoyEmu.MemoryNamespace
         public const int MEM_MAX_ADDRESS = 0xFFFF;
 
         private Logger _logger = LogManager.GetCurrentClassLogger();
-        private static Memory _memory = new Memory();
         private byte[] _memoryMap = new byte[0x1_0000]; //2^16 addresses (65.536)
         public byte[] memoryMap { get => _memoryMap; set => _memoryMap = value; }
 
         private byte[] _romDump = Array.Empty<byte>();
-        Rom _rom = Rom.GetRom();
 
-        public static Memory GetMemory()
-        {
-            return _memory;
-        }
+        Rom _rom = new Rom();
 
-        private Memory()
+        public Memory()
         {
             try
             {
