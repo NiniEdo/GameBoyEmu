@@ -11,7 +11,6 @@ namespace GameBoyEmu
         {
             GameBoy _gameboy = new GameBoy();
             _gameboy.Start();
-            
         }
     }
 }

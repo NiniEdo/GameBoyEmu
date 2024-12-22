@@ -8,18 +8,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading.Tasks;
-using System.Reflection.Emit;
-using System.Collections.ObjectModel;
-using System.Globalization;
-using System.Net.NetworkInformation;
-using System.Collections;
-using System.Formats.Asn1;
-using System.Runtime.CompilerServices;
-using static GameBoyEmu.CpuNamespace.Cpu;
-using System.Reflection.Metadata;
 
-[assembly: InternalsVisibleTo("GameBoyEmuTests")]
+
 namespace GameBoyEmu.CpuNamespace
 {
     class Cpu
@@ -54,8 +44,8 @@ namespace GameBoyEmu.CpuNamespace
             };
 
             _8bitsRegistries = new()
-            {
-                {paramsType.r8, new List<byte>{_BC[0], _BC[1], _DE[0], _DE[1], _HL[0], _HL[1], _memory.memoryMap[BitConverter.ToUInt16(_HL, 0)], _AF[0] } },
+            {                                                                                //0 because it's [hl] and will be handled separatly
+                {paramsType.r8, new List<byte>{_BC[0], _BC[1], _DE[0], _DE[1], _HL[0], _HL[1], 0, _AF[1] } },
             };
         }
 
@@ -64,7 +54,7 @@ namespace GameBoyEmu.CpuNamespace
             // find by 4 bits identifier
             switch (opcode & 0b0000_1111)
             {
-                case 0x00:
+                case 0b0000:
                     return new Instruction("NOP", 1, () =>
                     {
                         _logger.Debug($"Instruction Fetched: {"NOP"}");
@@ -108,7 +98,7 @@ namespace GameBoyEmu.CpuNamespace
 
                             if (memoryPointer <= Memory.MEM_MAX_ADDRESS - 1)
                             {
-                                _memory.memoryMap[memoryPointer] = _AF[0];
+                                _memory.memoryMap[memoryPointer] = _AF[1];
                             }
 
                             if (registerCode == 0b010)
@@ -147,7 +137,7 @@ namespace GameBoyEmu.CpuNamespace
 
                             if (memoryPointer <= Memory.MEM_MAX_ADDRESS)
                             {
-                                _AF[0] = _memory.memoryMap[memoryPointer];
+                                _AF[1] = _memory.memoryMap[memoryPointer];
                             }
 
                             if (registerCode == 0b010)
@@ -236,7 +226,7 @@ namespace GameBoyEmu.CpuNamespace
                         }
                     });
                 case 0b1001:
-                    return new Instruction("add HL, r16", 2, () =>
+                    return new Instruction("ADD HL, r16", 2, () =>
                     {
                         byte registerCode = (byte)((_instructionRegister & 0b0011_0000) >> 4);
                         List<Byte[]> registries = _16bitsRegistries[paramsType.r16];
@@ -256,9 +246,9 @@ namespace GameBoyEmu.CpuNamespace
                             _HL[0] = (byte)(HLValue >> 8);
                             _HL[1] = (byte)(HLValue & 0xFF);
 
-                            _flags.setSubtractionFlag(false);
-                            _flags.SetHalfCarryFlag(HLValue, registerValue, true, true);
-                            _flags.setCarryFlag(registerValue + HLValue, true, false);
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(HLValue, registerValue, true, true);
+                            _flags.setCarryFlagC(registerValue + HLValue, true, false);
                         }
                     });
                 default:
@@ -268,11 +258,218 @@ namespace GameBoyEmu.CpuNamespace
             //find by 3 bits identifier
             switch (opcode & 0b0000_0111)
             {
+                case 0b100:
+                    return new Instruction("INC R8", 1, () =>
+                    {
+                        byte registerCode = (byte)((_instructionRegister & 0b0011_1000) >> 3);
+                        List<Byte> registries = _8bitsRegistries[paramsType.r8];
+
+                        if (registerCode < registries.Count)
+                        {
+                            byte newValue;
+
+                            _logger.Debug($"Instruction Fetched: {"INC R8"}, register {registerCode}");
+                            if (registerCode == 0b110)
+                            {
+                                ushort value = (ushort)((_HL[0] << 8) | _HL[1]);
+                                newValue = _memory.memoryMap[value];
+                                newValue++;
+                                _memory.memoryMap[value] = newValue;
+                            }
+                            else
+                            {
+                                registries[registerCode] += 1;
+                                newValue = registries[registerCode];
+                            }
+
+                            _flags.SetHalfCarryFlagH((ushort)(newValue - 1), 1, true, false);
+                            _flags.setSubtractionFlagN(0);
+                            _flags.setZeroFlagZ(newValue);
+                        }
+                    });
+                case 0b101:
+                    return new Instruction("DEC R8", 1, () =>
+                    {
+                        byte registerCode = (byte)((_instructionRegister & 0b0011_1000) >> 3);
+                        List<Byte> registries = _8bitsRegistries[paramsType.r8];
+
+                        if (registerCode < registries.Count)
+                        {
+                            _logger.Debug($"Instruction Fetched: {"DEC R8"}, register {registerCode}");
+                            byte newValue;
+                            if (registerCode == 0b110)
+                            {
+                                ushort value = (ushort)((_HL[0] << 8) | _HL[1]);
+                                newValue = _memory.memoryMap[value];
+                                newValue--;
+                                _memory.memoryMap[value] = newValue;
+                            }
+                            else
+                            {
+                                registries[registerCode] -= 1;
+                                newValue = registries[registerCode];
+                            }
+                            _flags.SetHalfCarryFlagH((ushort)(newValue + 1), 1, false, false);
+                            _flags.setSubtractionFlagN(1);
+                            _flags.setZeroFlagZ(newValue);
+                        }
+                    });
+                case 0b110:
+                    return new Instruction("LD r8, Imm8", 2, () =>
+                    {
+                        byte imm8 = Fetch();
+
+                        byte registerCode = (byte)((_instructionRegister & 0b0011_1000) >> 3);
+                        List<Byte> registries = _8bitsRegistries[paramsType.r8];
+
+                        if (registerCode < registries.Count)
+                        {
+                            _logger.Debug($"Instruction Fetched: {"LD r8, Imm8"}, value: {imm8} with register {registerCode}");
+                            if (registerCode == 0b110)
+                            {
+                                ushort value = (ushort)((_HL[0] << 8) | _HL[1]);
+
+                                _memory.memoryMap[value] = imm8;
+                            }
+                            else
+                            {
+                                registries[registerCode] = imm8;
+                            }
+                        }
+                    });
                 default:
                     break;
-                    // find by 8 bits identifier
-
             }
+
+            // find by 8 bits identifier
+            switch (opcode)
+            {
+                case 0b0000_0111:
+                    return new Instruction("rlca", 1, () =>
+                    {
+                        byte carryOut = (byte)((_AF[1] & 0b1000_0000) >> 7);
+                        _AF[1] = (byte)((_AF[1] << 1) | carryOut);
+
+                        _logger.Debug($"Instruction Fetched: {"rlca"}");
+
+                        _flags.setZeroFlagZ(0);
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(0);
+                        _flags.setCarryFlagC(carryOut);
+                    });
+                case 0b0000_1111:
+                    return new Instruction("rrca", 1, () =>
+                    {
+                        byte carryOut = (byte)((_AF[1] & 0b0000_0001));
+                        _AF[1] = (byte)((_AF[1] >> 1) | (carryOut << 7));
+
+                        _logger.Debug($"Instruction Fetched: {"rrca"}");
+
+                        _flags.setZeroFlagZ(0);
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(0);
+                        _flags.setCarryFlagC(carryOut);
+                    });
+                case 0b0001_0111:
+                    return new Instruction("rla", 1, () =>
+                    {
+                        byte carryFlagValue = _flags.getCarryFlagC();
+                        byte carryOut = (byte)((_AF[1] & 0b1000_0000) >> 7);
+
+                        _AF[1] = _AF[1] = (byte)((_AF[1] << 1) | carryFlagValue);
+
+                        _logger.Debug($"Instruction Fetched: {"rla"}");
+
+                        _flags.setZeroFlagZ(0);
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(0);
+                        _flags.setCarryFlagC(carryOut);
+                    });
+                case 0b0001_1111:
+                    return new Instruction("rra", 1, () =>
+                    {
+                        byte carryFlagValue = _flags.getCarryFlagC();
+                        byte carryOut = (byte)((_AF[1] & 0b0000_0001));
+
+                        _AF[1] = _AF[1] = (byte)((_AF[1] >> 1) | (carryFlagValue << 7));
+
+                        _logger.Debug($"Instruction Fetched: {"rra"}");
+
+                        _flags.setZeroFlagZ(0);
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(0);
+                        _flags.setCarryFlagC(carryOut);
+                    });
+                case 0b0010_0111:
+                    return new Instruction("daa", 1, () =>
+                    {
+                        byte A = _AF[1];
+                        bool subtraction = _flags.getSubtractionFlagN() == 0 ? true : false;
+
+                        if (!subtraction)
+                        {
+                            if ((A & 0x0F) > 9 || _flags.getHalfCarryFlagH() == 1)
+                            {
+                                A += 0x06;
+                            }
+
+                            if (_flags.getCarryFlagC() == 1 || A > 0x99)
+                            {
+                                A += 0x60;
+                            }
+                        }
+                        else
+                        {
+                            if ((A & 0x0F) > 9 || _flags.getHalfCarryFlagH() == 1)
+                            {
+                                A -= 0x06;
+                            }
+
+                            if (_flags.getCarryFlagC() == 1)
+                            {
+                                A -= 0x60;
+                            }
+                        }
+
+                        _AF[1] = A;
+
+                        _logger.Debug($"Instruction Fetched: {"daa"}");
+
+                        _flags.setZeroFlagZ(_AF[1]);
+                        _flags.SetHalfCarryFlagH(0);
+                        _flags.setCarryFlagC(A > 0x99 ? 1 : 0);
+
+                    });
+                case 0b0010_1111:
+                    return new Instruction("cpl", 1, () =>
+                    {
+                        _AF[1] |= _AF[1];
+                        _logger.Debug($"Instruction Fetched: {"cpl"}");
+                        _flags.setSubtractionFlagN(1);
+                        _flags.SetHalfCarryFlagH(1);
+                    });
+                case 0b0011_0111:
+                    return new Instruction("scf", 1, () =>
+                    {
+                        _flags.setCarryFlagC(1);
+
+                        _logger.Debug($"Instruction Fetched: {"scf"}");
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(0);
+                    });
+                case 0b0011_1111:
+                    return new Instruction("ccf", 1, () =>
+                    {
+                        _flags.setCarryFlagC(_flags.getCarryFlagC() == 0 ? 1 : 0);
+
+                        _logger.Debug($"Instruction Fetched: {"ccf"}");
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(0);
+                    });
+                default:
+                    break;
+            }
+
             return null;
         }
 
@@ -330,7 +527,7 @@ namespace GameBoyEmu.CpuNamespace
                     case 0b00:
                         instruction = LookUpBlockZero(_instructionRegister);
                         break;
-                    default: 
+                    default:
                         instruction = null;
                         break;
                 }
@@ -347,6 +544,10 @@ namespace GameBoyEmu.CpuNamespace
                 if (instruction != null)
                 {
                     instruction?.Execute();
+                }
+                else
+                {
+                    _logger.Debug($"Instruction [{_instructionRegister}] not found");
                 }
             }
             catch (InstructionExcecutionException IntrExEx)
@@ -371,12 +572,14 @@ namespace GameBoyEmu.CpuNamespace
                 {
                     break;
                 }
-                pcValue = (ushort)((_PC[0] << 8) | _PC[1]);
-                _logger.Debug($"Values after operation: " +
+                _logger.Debug($"{pcValue}: Values after operation: " +
                     $"AF: {BitConverter.ToString(_AF)}, " + $"BC: {BitConverter.ToString(_BC)}, " +
                     $"DE: {BitConverter.ToString(_DE)}, " + $"HL: {BitConverter.ToString(_HL)}, " +
                     $"SP: {BitConverter.ToString(_SP)}, " + $"PC: {BitConverter.ToString(_PC)}");
+
+                pcValue = (ushort)((_PC[0] << 8) | _PC[1]);
             }
+            _logger.Debug($"Memory dump: {string.Join("-", _memory.memoryMap)}");
         }
     }
 }
