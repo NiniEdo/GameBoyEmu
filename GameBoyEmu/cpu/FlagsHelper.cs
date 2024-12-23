@@ -13,19 +13,19 @@ namespace GameBoyEmu.FlagsHelperNamespace
         {
             _AF = AF;
         }
-
-        public void setZeroFlagZ(uint result)
+        public void setZeroFlag(uint result)
         {
             int intValue = result == 0 ? 0 : 1;
-            _AF[0] = (byte)((_AF[0] & 0b0111_1111) | (intValue << 7));
+            _AF[1] = (byte)((_AF[1] & 0b0111_1111) | (intValue << 7));
         }
 
-        public void setSubtractionFlagN(byte value)
+        public void setSubtractionFlag(bool value)
         {
-            _AF[0] = (byte)((_AF[0] & 0b1011_1111) | (value << 6));
+            int intValue = value ? 1 : 0;
+            _AF[1] = (byte)((_AF[1] & 0b1011_1111) | (intValue << 6));
         }
 
-        public void SetHalfCarryFlagH(ushort operand1, ushort operand2, bool isAddition, bool is16Bit)
+        public void SetHalfCarryFlag(ushort operand1, ushort operand2, bool isAddition, bool is16Bit)
         {
             bool halfCarry;
             if (is16Bit)
@@ -56,20 +56,16 @@ namespace GameBoyEmu.FlagsHelperNamespace
 
             if (halfCarry)
             {
-                _AF[0] |= 0b0010_0000;
+                _AF[1] |= 0b0010_0000;
             }
             else
             {
-                _AF[0] &= 0b1101_1111;
+                _AF[1] &= 0b1101_1111;
             }
         }
 
-        public void SetHalfCarryFlagH(byte value)
-        {
-            _AF[0] = (byte)((_AF[0] & 0b1101_1111) | (value << 5));
-        }
 
-        public void setCarryFlagC(int value, bool is16bits, bool carryOut)
+        public void setCarryFlag(int value, bool is16bits, bool carryOut)
         {
             int intValue = 0;
             if (!carryOut)
@@ -85,29 +81,23 @@ namespace GameBoyEmu.FlagsHelperNamespace
             }
             else { intValue = 1; }
 
-            _AF[0] = (byte)((_AF[0] & 0b1110_1111) | (intValue << 4));
+            _AF[1] = (byte)((_AF[1] & 0b1110_1111) | (intValue << 4));
         }
-
-        public void setCarryFlagC(int value)
+        public byte getZeroFlag()
         {
-            _AF[0] = (byte)((_AF[0] & 0b1110_1111) | (value << 4));
+            return (byte)((_AF[1] & 0b1000_0000) >> 7);
         }
-
-        public byte getZeroFlagZ()
+        public byte getSubtractionFlag()
         {
-            return (byte)((_AF[0] & 0b1000_0000) >> 7);
+            return (byte)((_AF[1] & 0b0100_0000) >> 6);
         }
-        public byte getSubtractionFlagN()
+        public byte getHalfCarryFlag()
         {
-            return (byte)((_AF[0] & 0b0100_0000) >> 6);
+            return (byte)((_AF[1] & 0b0010_0000) >> 5);
         }
-        public byte getHalfCarryFlagH()
+        public byte getCarryFlag()
         {
-            return (byte)((_AF[0] & 0b0010_0000) >> 5);
-        }
-        public byte getCarryFlagC()
-        {
-            return (byte)((_AF[0] & 0b0001_0000) >> 4);
+            return (byte)((_AF[1] & 0b0001_0000) >> 4);
         }
     }
 }
