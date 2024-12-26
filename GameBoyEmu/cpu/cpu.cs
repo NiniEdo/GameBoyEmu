@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Reflection.Emit;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace GameBoyEmu.CpuNamespace
@@ -19,12 +21,12 @@ namespace GameBoyEmu.CpuNamespace
         private FlagsHelper _flags;
 
         //16 bits
-        private byte[] _AF = new byte[2];
-        private byte[] _BC = new byte[2];
-        private byte[] _DE = new byte[2];
-        private byte[] _HL = new byte[2];
-        private byte[] _SP = new byte[2];
-        private byte[] _PC = new byte[2] { 0x00, 0x00 };
+        private byte[] _AF = new byte[2] { 0x80, 0x01 };
+        private byte[] _BC = new byte[2] { 0x13, 0x00 };
+        private byte[] _DE = new byte[2] { 0xD8, 0x00 };
+        private byte[] _HL = new byte[2] { 0x4D, 0x01 };
+        private byte[] _SP = new byte[2] { 0xFE, 0xFF };
+        private byte[] _PC = new byte[2] { 0x00, 0x01 };
 
         private byte _instructionRegister = 0x00;
 
@@ -667,6 +669,345 @@ namespace GameBoyEmu.CpuNamespace
                             throw new InstructionExcecutionException("[adc a, r8] an error occurred");
                         }
                     });
+                case 0b1001_0000:
+                    return new Instruction("sub a, r8", 1, () =>
+                    {
+                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        List<Byte> registries = _8bitsRegistries[paramsType.r8];
+
+                        if (registerCode < registries.Count)
+                        {
+                            byte operand;
+                            if (registerCode == 0b110)
+                            {
+                                ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
+                                operand = _memory.memoryMap[pointerValue];
+                            }
+                            else
+                            {
+                                operand = registries[registerCode];
+                            }
+
+                            byte result = (byte)(_AF[1] - operand);
+
+                            _logger.Debug($"Instruction Fetched: {"sub a, r8"}, register {registerCode}, operand {operand} result {result}");
+
+                            _flags.setZeroFlagZ(result);
+                            _flags.setSubtractionFlagN(1);
+                            _flags.SetHalfCarryFlagH(_AF[1], operand, false, false);
+                            _flags.setCarryFlagC(operand > _AF[1] ? 1 : 0);
+
+                            _AF[1] = result;
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[sub a, r8] an error occurred");
+                        }
+                    });
+                case 0b1001_1000:
+                    return new Instruction("sbc a, r8", 1, () =>
+                    {
+                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        List<Byte> registries = _8bitsRegistries[paramsType.r8];
+
+                        if (registerCode < registries.Count)
+                        {
+                            byte operand;
+                            if (registerCode == 0b110)
+                            {
+                                ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
+                                operand = (byte)(_memory.memoryMap[pointerValue] + _flags.getCarryFlagC());
+                            }
+                            else
+                            {
+                                operand = (byte)(registries[registerCode] + _flags.getCarryFlagC());
+                            }
+
+                            byte result = (byte)(_AF[1] - operand);
+
+                            _logger.Debug($"Instruction Fetched: {"sbc a, r8"}, register {registerCode}, operand {operand} result {result}");
+
+                            _flags.setZeroFlagZ(result);
+                            _flags.setSubtractionFlagN(1);
+                            _flags.SetHalfCarryFlagH(_AF[1], operand, false, false);
+                            _flags.setCarryFlagC(operand > _AF[1] ? 1 : 0);
+
+                            _AF[1] = result;
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[sbc a, r8] an error occurred");
+                        }
+                    });
+                case 0b1010_0000:
+                    return new Instruction("and a, r8", 1, () =>
+                    {
+                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        List<Byte> registries = _8bitsRegistries[paramsType.r8];
+
+                        if (registerCode < registries.Count)
+                        {
+                            byte operand;
+                            if (registerCode == 0b110)
+                            {
+                                ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
+                                operand = (byte)(_memory.memoryMap[pointerValue]);
+                            }
+                            else
+                            {
+                                operand = (byte)(registries[registerCode]);
+                            }
+
+                            _logger.Debug($"Instruction Fetched: {"and a, r8"}, register {registerCode}");
+
+                            _AF[1] = (byte)(_AF[1] & operand);
+
+                            _flags.setZeroFlagZ(_AF[1]);
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(1);
+                            _flags.setCarryFlagC(0);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[and a, r8] an error occurred");
+                        }
+                    });
+                case 0b1010_1000:
+                    return new Instruction("xor a, r8", 1, () =>
+                    {
+                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        List<Byte> registries = _8bitsRegistries[paramsType.r8];
+
+                        if (registerCode < registries.Count)
+                        {
+                            byte operand;
+                            if (registerCode == 0b110)
+                            {
+                                ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
+                                operand = (byte)(_memory.memoryMap[pointerValue]);
+                            }
+                            else
+                            {
+                                operand = (byte)(registries[registerCode]);
+                            }
+
+                            _logger.Debug($"Instruction Fetched: {"xor a, r8"}, register {registerCode}");
+
+                            _AF[1] = (byte)(_AF[1] ^ operand);
+
+                            _flags.setZeroFlagZ(_AF[1]);
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(0);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[xor a, r8] an error occurred");
+                        }
+                    });
+                case 0b1011_0000:
+                    return new Instruction("or a, r8", 1, () =>
+                    {
+                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        List<Byte> registries = _8bitsRegistries[paramsType.r8];
+
+                        if (registerCode < registries.Count)
+                        {
+                            byte operand;
+                            if (registerCode == 0b110)
+                            {
+                                ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
+                                operand = (byte)(_memory.memoryMap[pointerValue]);
+                            }
+                            else
+                            {
+                                operand = (byte)(registries[registerCode]);
+                            }
+
+                            _logger.Debug($"Instruction Fetched: {"or a, r8"}, register {registerCode}");
+
+                            _AF[1] = (byte)(_AF[1] | operand);
+
+                            _flags.setZeroFlagZ(_AF[1]);
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(0);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[or a, r8] an error occurred");
+                        }
+                    });
+                case 0b1011_1000:
+                    return new Instruction("cp a, r8", 1, () =>
+                    {
+                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        List<Byte> registries = _8bitsRegistries[paramsType.r8];
+
+                        if (registerCode < registries.Count)
+                        {
+                            byte operand;
+                            if (registerCode == 0b110)
+                            {
+                                ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
+                                operand = _memory.memoryMap[pointerValue];
+                            }
+                            else
+                            {
+                                operand = registries[registerCode];
+                            }
+
+                            byte result = (byte)(_AF[1] - operand);
+
+                            _logger.Debug($"Instruction Fetched: {"cp a, r8"}, register {registerCode}, operand {operand} result {result}");
+
+                            _flags.setZeroFlagZ(result);
+                            _flags.setSubtractionFlagN(1);
+                            _flags.SetHalfCarryFlagH(_AF[1], operand, false, false);
+                            _flags.setCarryFlagC(operand > _AF[1] ? 1 : 0);
+
+                            // AF[1] MUST not be set
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[cp a, r8] an error occurred");
+                        }
+                    });
+                default:
+                    break;
+            }
+            return null;
+        }
+
+        private Instruction? LookUpBlockThree(byte opcode)
+        {
+            switch (opcode)
+            {
+                case 0b1100_0110:
+                    return new Instruction("add a, imm8", 2, () =>
+                    {
+                        byte imm8 = Fetch();
+
+                        byte result = (byte)(_AF[1] + imm8);
+
+                        _logger.Debug($"Instruction Fetched: {"add a, imm8"} operand {imm8} result {result}");
+
+                        _flags.setZeroFlagZ(result);
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(_AF[1], imm8, true, false);
+                        _flags.setCarryFlagC(_AF[1] + imm8, false, false);
+
+                        _AF[1] = result;
+
+                    });
+                case 0b1100_1110:
+                    return new Instruction("adc a, imm8", 2, () =>
+                    {
+                        byte imm8 = Fetch();
+
+                        byte operand = (byte)(imm8 + _flags.getCarryFlagC());
+                        byte result = (byte)(_AF[1] + operand);
+
+                        _logger.Debug($"Instruction Fetched: {"adc a, imm8"} operand {imm8} result {result}");
+
+                        _flags.setZeroFlagZ(result);
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(_AF[1], operand, true, false);
+                        _flags.setCarryFlagC(_AF[1] + operand, false, false);
+
+                        _AF[1] = result;
+                    });
+                case 0b1101_0110:
+                    return new Instruction("sub a, imm8", 2, () =>
+                    {
+                        byte imm8 = Fetch();
+
+                        byte result = (byte)(_AF[1] - imm8);
+
+                        _logger.Debug($"Instruction Fetched: {"sub a, imm8"} operand {imm8} result {result}");
+
+                        _flags.setZeroFlagZ(result);
+                        _flags.setSubtractionFlagN(1);
+                        _flags.SetHalfCarryFlagH(_AF[1], imm8, false, false);
+                        _flags.setCarryFlagC(imm8 > _AF[1] ? 1 : 0);
+
+                        _AF[1] = result;
+                    });
+                case 0b1101_1110:
+                    return new Instruction("sbc a, imm8", 2, () =>
+                    {
+                        byte imm8 = Fetch();
+
+                        byte operand = (byte)(imm8 + _flags.getCarryFlagC());
+                        byte result = (byte)(_AF[1] - operand);
+
+                        _logger.Debug($"Instruction Fetched: {"sbc a, imm8"} operand {imm8} result {result}");
+
+                        _flags.setZeroFlagZ(result);
+                        _flags.setSubtractionFlagN(1);
+                        _flags.SetHalfCarryFlagH(_AF[1], operand, false, false);
+                        _flags.setCarryFlagC(operand > _AF[1] ? 1 : 0);
+
+                        _AF[1] = result;
+                    });
+                case 0b1110_0110:
+                    return new Instruction("and a, imm8", 2, () =>
+                    {
+                        byte imm8 = Fetch();
+
+                        _AF[1] = (byte)(_AF[1] & imm8);
+
+                        _logger.Debug($"Instruction Fetched: {"and a, imm8"} operand {imm8}");
+
+                        _flags.setZeroFlagZ(_AF[1]);
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(1);
+                        _flags.setCarryFlagC(0);
+                    });
+                case 0b1110_1110:
+                    return new Instruction("xor a, imm8", 2, () =>
+                    {
+                        byte imm8 = Fetch();
+
+                        _AF[1] = (byte)(_AF[1] ^ imm8);
+
+                        _logger.Debug($"Instruction Fetched: {"xor a, imm8"} operand {imm8}");
+
+                        _flags.setZeroFlagZ(_AF[1]);
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(0);
+                        _flags.setCarryFlagC(0);
+                    });
+                case 0b1111_0110:
+                    return new Instruction("or a, imm8", 2, () =>
+                    {
+                        byte imm8 = Fetch();
+
+                        _AF[1] = (byte)(_AF[1] | imm8);
+
+                        _logger.Debug($"Instruction Fetched: {"or a, imm8"} operand {imm8}");
+
+                        _flags.setZeroFlagZ(_AF[1]);
+                        _flags.setSubtractionFlagN(0);
+                        _flags.SetHalfCarryFlagH(0);
+                        _flags.setCarryFlagC(0);
+                    });
+                case 0b1111_1110:
+                    return new Instruction("cp a, imm8", 2, () =>
+                    {
+                        byte imm8 = Fetch();
+
+                        byte result = (byte)(_AF[1] - imm8);
+
+                        _logger.Debug($"Instruction Fetched: {"cp a, imm8"}, operand {imm8} result {result}");
+
+                        _flags.setZeroFlagZ(result);
+                        _flags.setSubtractionFlagN(1);
+                        _flags.SetHalfCarryFlagH(_AF[1], imm8, false, false);
+                        _flags.setCarryFlagC(imm8 > _AF[1] ? 1 : 0);
+
+                        // AF[1] MUST not be set
+                    });
                 default:
                     break;
             }
@@ -734,6 +1075,9 @@ namespace GameBoyEmu.CpuNamespace
                     case 0b10:
                         instruction = LookUpBlockTwo(_instructionRegister);
                         break;
+                    case 0b11:
+                        instruction = LookUpBlockThree(_instructionRegister);
+                        break;
                     default:
                         instruction = null;
                         break;
@@ -779,14 +1123,14 @@ namespace GameBoyEmu.CpuNamespace
                 {
                     break;
                 }
-                _logger.Debug($"{pcValue}: Values after operation: " +
+                _logger.Debug($"{pcValue}: Values after operation: {_instructionRegister} " +
                     $"AF: {BitConverter.ToString(_AF)}, " + $"BC: {BitConverter.ToString(_BC)}, " +
                     $"DE: {BitConverter.ToString(_DE)}, " + $"HL: {BitConverter.ToString(_HL)}, " +
                     $"SP: {BitConverter.ToString(_SP)}, " + $"PC: {BitConverter.ToString(_PC)}");
 
                 pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
             }
-            _logger.Info($"Memory dump: {string.Join("-", _memory.memoryMap)}");
+            _logger.Debug($"Memory dump: {string.Join("-", _memory.memoryMap)}");
         }
     }
 }
