@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Reflection.Emit;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Runtime.Intrinsics.X86;
 
 
 namespace GameBoyEmu.CpuNamespace
@@ -29,6 +30,9 @@ namespace GameBoyEmu.CpuNamespace
         private byte[] _PC = new byte[2] { 0x00, 0x01 };
 
         private byte _instructionRegister = 0x00;
+        private bool imeFlag = false;
+
+        private int _cycles = 0;
 
         private readonly Dictionary<paramsType, List<byte[]>> _16bitsRegistries;
         private readonly Dictionary<paramsType, List<byte>> _8bitsRegistries;
@@ -50,6 +54,34 @@ namespace GameBoyEmu.CpuNamespace
                 {paramsType.r8, new List<byte>{_BC[0], _BC[1], _DE[0], _DE[1], _HL[0], _HL[1], 0, _AF[1] } },
             };
         }
+
+        private void Push(byte highByte, byte lowByte)
+        {
+            ushort sp = (ushort)((_SP[1] << 8) | _SP[0]);
+            sp--;
+            _memory.memoryMap[sp] = highByte;
+
+            sp--;
+            _memory.memoryMap[sp] = lowByte;
+
+            _SP[0] = (byte)(sp & 0xFF);
+            _SP[1] = (byte)(sp >> 8);
+        }
+
+        private void Pop(out byte highByte, out byte lowByte)
+        {
+            ushort sp = (ushort)((_SP[1] << 8) | _SP[0]);
+
+            lowByte = _memory.memoryMap[sp];
+            sp++;
+
+            highByte = _memory.memoryMap[sp];
+            sp++;
+
+            _SP[0] = (byte)(sp & 0xFF);
+            _SP[1] = (byte)(sp >> 8);
+        }
+
         private bool getCc(byte cond)
         {
             switch (cond)
@@ -233,7 +265,7 @@ namespace GameBoyEmu.CpuNamespace
                         byte lowByte = Fetch();
                         byte highByte = Fetch();
 
-                        byte registerCode = (byte)((_instructionRegister & 0b0011_0000) >> 4);
+                        byte registerCode = (byte)((opcode & 0b0011_0000) >> 4);
                         List<Byte[]> registries = _16bitsRegistries[paramsType.r16];
 
                         _logger.Debug($"Instruction Fetched: {"LD r16, imm16"} with params: {lowByte}, {highByte} and register {registerCode}");
@@ -250,9 +282,9 @@ namespace GameBoyEmu.CpuNamespace
                         }
                     });
                 case 0b0010:
-                    return new Instruction("LD [r16mem], A", 4, () =>
+                    return new Instruction("LD [r16mem], A", 2, () =>
                     {
-                        byte registerCode = (byte)((_instructionRegister & 0b0011_0000) >> 4);
+                        byte registerCode = (byte)((opcode & 0b0011_0000) >> 4);
                         List<Byte[]> registries = _16bitsRegistries[paramsType.r16mem];
 
                         if (registerCode < registries.Count)
@@ -291,7 +323,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1010:
                     return new Instruction("LD A, [r16mem]", 2, () =>
                     {
-                        byte registerCode = (byte)((_instructionRegister & 0b0011_0000) >> 4);
+                        byte registerCode = (byte)((opcode & 0b0011_0000) >> 4);
                         List<Byte[]> registries = _16bitsRegistries[paramsType.r16mem];
 
                         if (registerCode < registries.Count)
@@ -349,7 +381,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b0011:
                     return new Instruction("INC r16", 2, () =>
                         {
-                            byte registerCode = (byte)((_instructionRegister & 0b0011_0000) >> 4);
+                            byte registerCode = (byte)((opcode & 0b0011_0000) >> 4);
                             List<Byte[]> registries = _16bitsRegistries[paramsType.r16];
 
                             _logger.Debug($"Instruction Fetched: {"INC r16"}, register {registerCode}");
@@ -372,7 +404,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1011:
                     return new Instruction("DEC r16", 2, () =>
                     {
-                        byte registerCode = (byte)((_instructionRegister & 0b0011_0000) >> 4);
+                        byte registerCode = (byte)((opcode & 0b0011_0000) >> 4);
                         List<Byte[]> registries = _16bitsRegistries[paramsType.r16];
 
                         _logger.Debug($"Instruction Fetched: {"DEC r16"}, register {registerCode}");
@@ -394,7 +426,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1001:
                     return new Instruction("ADD HL, r16", 2, () =>
                     {
-                        byte registerCode = (byte)((_instructionRegister & 0b0011_0000) >> 4);
+                        byte registerCode = (byte)((opcode & 0b0011_0000) >> 4);
                         List<Byte[]> registries = _16bitsRegistries[paramsType.r16];
 
                         _logger.Debug($"Instruction Fetched: {"add HL, r16"}, register {registerCode}");
@@ -431,7 +463,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b100:
                     return new Instruction("INC R8", 1, () =>
                     {
-                        byte registerCode = (byte)((_instructionRegister & 0b0011_1000) >> 3);
+                        byte registerCode = (byte)((opcode & 0b0011_1000) >> 3);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -445,6 +477,8 @@ namespace GameBoyEmu.CpuNamespace
                                 newValue = _memory.memoryMap[value];
                                 newValue++;
                                 _memory.memoryMap[value] = newValue;
+
+                                _cycles += 2;
                             }
                             else
                             {
@@ -464,7 +498,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b101:
                     return new Instruction("DEC R8", 1, () =>
                     {
-                        byte registerCode = (byte)((_instructionRegister & 0b0011_1000) >> 3);
+                        byte registerCode = (byte)((opcode & 0b0011_1000) >> 3);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -477,6 +511,8 @@ namespace GameBoyEmu.CpuNamespace
                                 newValue = _memory.memoryMap[value];
                                 newValue--;
                                 _memory.memoryMap[value] = newValue;
+
+                                _cycles += 2;
                             }
                             else
                             {
@@ -497,7 +533,7 @@ namespace GameBoyEmu.CpuNamespace
                     {
                         byte imm8 = Fetch();
 
-                        byte registerCode = (byte)((_instructionRegister & 0b0011_1000) >> 3);
+                        byte registerCode = (byte)((opcode & 0b0011_1000) >> 3);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -508,6 +544,8 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort value = (ushort)((_HL[1] << 8) | _HL[0]);
 
                                 _memory.memoryMap[value] = imm8;
+
+                                _cycles += 1;
                             }
                             else
                             {
@@ -520,24 +558,26 @@ namespace GameBoyEmu.CpuNamespace
                         }
                     });
                 case 0b000:
-                    return new Instruction("jr cond, imm8", 3, () =>
+                    return new Instruction("jr cond, imm8", 2, () =>
                     {
-                        byte ConditionCode = (byte)((_instructionRegister & 0b0001_1000) >> 4);
-                        if (getCc(ConditionCode))
+                        byte conditionCode = (byte)((opcode & 0b0001_1000) >> 3);
+                        if (getCc(conditionCode))
                         {
                             sbyte offest = (sbyte)Fetch();
                             ushort pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
 
                             ushort newPcValue = (ushort)(pcValue + offest);
 
-                            _logger.Debug($"Instruction Fetched: {"jr cond, imm8"}, with cc: {ConditionCode}, pcValue: {pcValue}, offset: {offest} and new pcValue: {newPcValue}");
+                            _logger.Debug($"Instruction Fetched: {"jr cond, imm8"}, with cc: {conditionCode}, pcValue: {pcValue}, offset: {offest} and new pcValue: {newPcValue}");
 
                             _PC[0] = (byte)(newPcValue & 0xFF);
                             _PC[1] = (byte)(newPcValue >> 8);
+
+                            _cycles += 1;
                         }
                         else
                         {
-                            _logger.Debug($"Instruction Fetched: {"jr cond, imm8"}, with cc: {ConditionCode}");
+                            _logger.Debug($"Instruction Fetched: {"jr cond, imm8"}, with cc: {conditionCode}");
                         }
                     });
                 default:
@@ -559,8 +599,8 @@ namespace GameBoyEmu.CpuNamespace
                 default:
                     return new Instruction("ld r8, r8", 1, () =>
                     {
-                        byte registerCodeDestination = (byte)((_instructionRegister & 0b0011_1000) >> 3);
-                        byte registerCodeSource = (byte)((_instructionRegister & 0b0000_0111));
+                        byte registerCodeDestination = (byte)((opcode & 0b0011_1000) >> 3);
+                        byte registerCodeSource = (byte)((opcode & 0b0000_0111));
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         _logger.Debug($"Instruction Fetched: {"ld r8, r8"}, destination: {registerCodeDestination}, source: {registerCodeSource}");
@@ -577,11 +617,15 @@ namespace GameBoyEmu.CpuNamespace
                                 {
                                     ushort hlAddress = (ushort)((_HL[1] << 8) | _HL[0]);
                                     _memory.memoryMap[hlAddress] = registries[registerCodeSource];
+
+                                    _cycles += 1;
                                 }
                                 else if (registerCodeSource == 0b110)
                                 {
                                     ushort hlAddress = (ushort)((_HL[1] << 8) | _HL[0]);
                                     registries[registerCodeDestination] = _memory.memoryMap[hlAddress];
+
+                                    _cycles += 1;
                                 }
                                 else
                                 {
@@ -604,7 +648,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1000_0000:
                     return new Instruction("add a, r8", 1, () =>
                     {
-                        byte registerCode = (byte)((_instructionRegister & 0b0000_0111));
+                        byte registerCode = (byte)((opcode & 0b0000_0111));
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -615,6 +659,8 @@ namespace GameBoyEmu.CpuNamespace
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 valueToAdd = _memory.memoryMap[pointerValue];
+
+                                _cycles += 1;
                             }
                             else
                             {
@@ -638,7 +684,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1000_1000:
                     return new Instruction("adc a, r8", 1, () =>
                     {
-                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -649,6 +695,8 @@ namespace GameBoyEmu.CpuNamespace
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 valueToAdd = (byte)(_memory.memoryMap[pointerValue] + _flags.getCarryFlagC());
+
+                                _cycles += 1;
                             }
                             else
                             {
@@ -672,7 +720,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1001_0000:
                     return new Instruction("sub a, r8", 1, () =>
                     {
-                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -682,6 +730,8 @@ namespace GameBoyEmu.CpuNamespace
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = _memory.memoryMap[pointerValue];
+
+                                _cycles += 1;
                             }
                             else
                             {
@@ -707,7 +757,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1001_1000:
                     return new Instruction("sbc a, r8", 1, () =>
                     {
-                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -717,6 +767,8 @@ namespace GameBoyEmu.CpuNamespace
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = (byte)(_memory.memoryMap[pointerValue] + _flags.getCarryFlagC());
+
+                                _cycles += 1;
                             }
                             else
                             {
@@ -742,7 +794,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1010_0000:
                     return new Instruction("and a, r8", 1, () =>
                     {
-                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -752,6 +804,8 @@ namespace GameBoyEmu.CpuNamespace
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = (byte)(_memory.memoryMap[pointerValue]);
+
+                                _cycles += 1;
                             }
                             else
                             {
@@ -775,7 +829,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1010_1000:
                     return new Instruction("xor a, r8", 1, () =>
                     {
-                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -785,6 +839,8 @@ namespace GameBoyEmu.CpuNamespace
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = (byte)(_memory.memoryMap[pointerValue]);
+
+                                _cycles += 1;
                             }
                             else
                             {
@@ -808,7 +864,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1011_0000:
                     return new Instruction("or a, r8", 1, () =>
                     {
-                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -818,6 +874,8 @@ namespace GameBoyEmu.CpuNamespace
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = (byte)(_memory.memoryMap[pointerValue]);
+
+                                _cycles += 1;
                             }
                             else
                             {
@@ -841,7 +899,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1011_1000:
                     return new Instruction("cp a, r8", 1, () =>
                     {
-                        byte registerCode = (byte)(_instructionRegister & 0b0000_0111);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
                         List<Byte> registries = _8bitsRegistries[paramsType.r8];
 
                         if (registerCode < registries.Count)
@@ -851,6 +909,8 @@ namespace GameBoyEmu.CpuNamespace
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = _memory.memoryMap[pointerValue];
+
+                                _cycles += 1;
                             }
                             else
                             {
@@ -1008,6 +1068,85 @@ namespace GameBoyEmu.CpuNamespace
 
                         // AF[1] MUST not be set
                     });
+                case 0b1100_1001:
+                    return new Instruction("ret", 4, () =>
+                    {
+                        Pop(out byte highByte, out byte lowByte);
+
+                        _logger.Debug($"Instruction Fetched: {"ret"}");
+
+                        _PC[0] = lowByte;
+                        _PC[1] = highByte;
+                    });
+                case 0b1101_1001:
+                    return new Instruction("reti", 4, () =>
+                    {
+                        Pop(out byte highByte, out byte lowByte);
+
+                        _logger.Debug($"Instruction Fetched: {"reti"}");
+
+                        _PC[0] = lowByte;
+                        _PC[1] = highByte;
+
+                        imeFlag = true;
+                    });
+                case 0b1100_0011:
+                    return new Instruction("jp n16", 4, () =>
+                    {
+                        byte lowByte = Fetch();
+                        byte highByte = Fetch();
+
+                        _PC[0] = lowByte;
+                        _PC[1] = highByte;
+
+                        _logger.Debug($"Instruction Fetched: {"jp n16"} with params: {lowByte}, {highByte}");
+                    });
+                case 0b1110_1001:
+                    return new Instruction("jp hl", 1, () =>
+                    {
+                        _PC[0] = _HL[0];
+                        _PC[1] = _HL[1];
+
+                        _logger.Debug($"Instruction Fetched: {"jp hl"}");
+                    });
+                default:
+                    break;
+            }
+            switch (opcode & 0b1110_0111)
+            {
+                case 0b1100_0000:
+                    return new Instruction("ret cond", 2, () =>
+                    {
+                        byte conditionCode = (byte)((opcode & 0b0001_1000) >> 3);
+                        if (getCc(conditionCode))
+                        {
+                            Pop(out byte highByte, out byte lowByte);
+
+                            _PC[0] = lowByte;
+                            _PC[1] = highByte;
+
+                            _cycles += 3;
+                        }
+                        _logger.Debug($"Instruction Fetched: {"ret cond"} with condition {conditionCode}");
+                    });
+                case 0b1100_0010:
+                    return new Instruction("jp cond, n16", 3, () =>
+                    {
+                        byte conditionCode = (byte)((opcode & 0b0001_1000) >> 3);
+
+                        byte lowByte = Fetch();
+                        byte highByte = Fetch();
+
+                        if (getCc(conditionCode))
+                        {
+                            _PC[0] = lowByte;
+                            _PC[1] = highByte;
+
+                            _cycles += 1;
+                        }
+                        _logger.Debug($"Instruction Fetched: {"LD r16, imm16"} with params: {lowByte}, {highByte} and condition {conditionCode}");
+                    });
+
                 default:
                     break;
             }
@@ -1095,6 +1234,7 @@ namespace GameBoyEmu.CpuNamespace
                 if (instruction != null)
                 {
                     instruction?.Execute();
+                    _cycles += instruction?.Cycles ?? 0;
                 }
                 else
                 {

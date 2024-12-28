@@ -92,7 +92,6 @@ namespace GameBoyEmu.FlagsHelperNamespace
         {
             _AF[0] = (byte)((_AF[0] & 0b1110_1111) | (value << 4));
         }
-
         public byte getZeroFlagZ()
         {
             return (byte)((_AF[0] & 0b1000_0000) >> 7);
