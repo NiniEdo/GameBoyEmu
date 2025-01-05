@@ -8,17 +8,16 @@ using NLog;
 using GameBoyEmu.Exceptions;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace GameBoyEmu.RomNamespace
+namespace GameBoyEmu.CartridgeNamespace
 {
-    internal class Rom
+    internal class Cartridge
     {
         private Logger logger = LogManager.GetCurrentClassLogger();
-        private static Rom _rom = new Rom();
         private byte[]? romDump; 
+        //TODO: Implement switchable rom and mbc
+        public Cartridge() { }
 
-        public Rom() { }
-
-        public byte[] loadFromCartridge()
+        public byte[] loadRomFromCartridge()
         {
             string directoryPath = @"..\..\..";
             String[] files = Directory.GetFiles(directoryPath, "*.gb");
@@ -38,9 +37,11 @@ namespace GameBoyEmu.RomNamespace
                 throw new CartridgeException("Failed to read cartridge: " + IOex.Message);
             }
 
+            readHeaderData();
+
             return romDump;
         }
-        public void validateRom()
+        private void readHeaderData()
         {
 
         }

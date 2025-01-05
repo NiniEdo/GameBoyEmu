@@ -1,6 +1,6 @@
 ﻿using GameBoyEmu.CpuNamespace;
 using GameBoyEmu.Exceptions;
-using GameBoyEmu.RomNamespace;
+using GameBoyEmu.CartridgeNamespace;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -17,17 +17,28 @@ namespace GameBoyEmu.MemoryNamespace
 
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private byte[] _memoryMap = new byte[0x1_0000]; //2^16 addresses (65.536)
-        public byte[] memoryMap { get => _memoryMap; set => _memoryMap = value; }
+        Cartridge _cartridge = new Cartridge();
+        public byte[] memoryMap
+        {
+            get
+            {
+                _logger.Info("accessed memory map"); // debug pourposes only
+                return _memoryMap;
+            }
+            set
+            {
+                _memoryMap = value;
+            }
+        }
 
         private byte[] _romDump = Array.Empty<byte>();
 
-        Rom _rom = new Rom();
 
         public Memory()
         {
             try
             {
-                _romDump = _rom.loadFromCartridge();
+                _romDump = _cartridge.loadRomFromCartridge();
             }
             catch (CartridgeException CAex)
             {

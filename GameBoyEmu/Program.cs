@@ -1,4 +1,4 @@
-﻿using GameBoyEmu.RomNamespace;
+﻿using GameBoyEmu.CartridgeNamespace;
 using GameBoyEmu;
 using GameBoyEmu.CpuNamespace;
 using System.Runtime.CompilerServices;

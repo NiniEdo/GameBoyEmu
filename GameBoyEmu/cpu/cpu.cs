@@ -1,6 +1,6 @@
 ﻿using GameBoyEmu.Exceptions;
 using NLog;
-using GameBoyEmu.RomNamespace;
+using GameBoyEmu.CartridgeNamespace;
 using GameBoyEmu.MemoryNamespace;
 using GameBoyEmu.FlagsHelperNamespace;
 using System;
@@ -12,6 +12,7 @@ using System.Reflection.Emit;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Runtime.Intrinsics.X86;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Win32;
 
 
 namespace GameBoyEmu.CpuNamespace
@@ -1157,7 +1158,7 @@ namespace GameBoyEmu.CpuNamespace
                         _logger.Debug($"Instruction Fetched: {"call n16"} with params: {lowByte}, {highByte}");
                     });
                 case 0b1100_1011:
-                    return LookUpBlockCB(opcode);
+                    return LookUpBlockCB();
                 case 0b1110_0010:
                     return new Instruction("ldh [c], a", 2, () =>
                     {
@@ -1395,10 +1396,453 @@ namespace GameBoyEmu.CpuNamespace
             return null;
         }
 
-        private Instruction? LookUpBlockCB(byte opcode)
+        private Instruction? LookUpBlockCB()
         {
-            switch (opcode)
+            byte opcode = Fetch();
+            switch (opcode & 0b1111_1000)
             {
+                case 0b0000_0000:
+                    return new Instruction("rlc r8", 2, () =>
+                    {
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        _logger.Debug($"Instruction Fetched: {"rlc r8"} with param {registerCode}");
+
+                        byte carryOut;
+
+                        if (registerCode < registries.Count)
+                        {
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                carryOut = (byte)((_memory.memoryMap[memoryPointer] & 0b1000_0000) >> 7);
+                                _memory.memoryMap[memoryPointer] = (byte)((_memory.memoryMap[memoryPointer] << 1) | carryOut);
+
+                                _cycles += 2;
+                                _flags.setZeroFlagZ(_memory.memoryMap[memoryPointer]);
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                carryOut = (byte)((register.Value & 0b1000_0000) >> 7);
+                                register.Value = (byte)((register.Value << 1) | carryOut);
+
+                                _flags.setZeroFlagZ(register.Value);
+                            }
+
+
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(carryOut);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[rlc r8] an error occurred");
+                        }
+                    });
+                case 0b0000_1000:
+                    return new Instruction("rrc r8", 2, () =>
+                    {
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        _logger.Debug($"Instruction Fetched: {"rrc r8"} with param {registerCode}");
+
+                        byte carryOut;
+
+                        if (registerCode < registries.Count)
+                        {
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                carryOut = (byte)((_memory.memoryMap[memoryPointer] & 0b0000_0001));
+                                _memory.memoryMap[memoryPointer] = (byte)((_memory.memoryMap[memoryPointer] >> 1) | carryOut);
+
+                                _cycles += 2;
+                                _flags.setZeroFlagZ(_memory.memoryMap[memoryPointer]);
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                carryOut = (byte)((register.Value & 0b0000_0001));
+                                register.Value = (byte)((register.Value >> 1) | carryOut);
+
+                                _flags.setZeroFlagZ(register.Value);
+                            }
+
+
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(carryOut);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[rrc r8] an error occurred");
+                        }
+                    });
+                case 0b0001_0000:
+                    return new Instruction("rl r8", 2, () =>
+                    {
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        _logger.Debug($"Instruction Fetched: {"rl r8"} with param {registerCode}");
+
+                        byte carryOut;
+
+                        if (registerCode < registries.Count)
+                        {
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                carryOut = (byte)((_memory.memoryMap[memoryPointer] & 0b1000_0000) >> 7);
+
+                                _memory.memoryMap[memoryPointer] = (byte)((_memory.memoryMap[memoryPointer] << 1) | _flags.getCarryFlagC());
+
+                                _cycles += 2;
+                                _flags.setZeroFlagZ(_memory.memoryMap[memoryPointer]);
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                carryOut = (byte)((register.Value & 0b1000_0000) >> 7);
+                                register.Value = (byte)((register.Value << 1) | _flags.getCarryFlagC());
+
+                                _flags.setZeroFlagZ(register.Value);
+                            }
+
+
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(carryOut);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[rl r8] an error occurred");
+                        }
+                    });
+                case 0b0001_1000:
+                    return new Instruction("rr r8", 2, () =>
+                    {
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        _logger.Debug($"Instruction Fetched: {"rr r8"} with param {registerCode}");
+
+                        byte carryOut;
+
+                        if (registerCode < registries.Count)
+                        {
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                carryOut = (byte)(_memory.memoryMap[memoryPointer] & 0b0000_0001);
+                                _memory.memoryMap[memoryPointer] = (byte)((_memory.memoryMap[memoryPointer] >> 1) | (_flags.getCarryFlagC() << 7));
+
+                                _cycles += 2;
+                                _flags.setZeroFlagZ(_memory.memoryMap[memoryPointer]);
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                carryOut = (byte)(register.Value & 0b0000_0001);
+                                register.Value = (byte)((register.Value >> 1) | (_flags.getCarryFlagC() << 7));
+
+                                _flags.setZeroFlagZ(register.Value);
+                            }
+
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(carryOut);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[rr r8] an error occurred");
+                        }
+                    });
+                case 0b0010_0000:
+                    return new Instruction("sla r8", 2, () =>
+                    {
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        _logger.Debug($"Instruction Fetched: {"sla r8"} with param {registerCode}");
+
+                        byte carryOut;
+
+                        if (registerCode < registries.Count)
+                        {
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                carryOut = (byte)((_memory.memoryMap[memoryPointer] & 0b1000_0000) >> 7);
+                                _memory.memoryMap[memoryPointer] = (byte)(_memory.memoryMap[memoryPointer] << 1);
+
+                                _cycles += 2;
+                                _flags.setZeroFlagZ(_memory.memoryMap[memoryPointer]);
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                carryOut = (byte)((register.Value & 0b1000_0000) >> 7);
+                                register.Value = (byte)(register.Value << 1);
+
+                                _flags.setZeroFlagZ(register.Value);
+                            }
+
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(carryOut);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[sla r8] an error occurred");
+                        }
+                    });
+                case 0b0010_1000:
+                    return new Instruction("sra r8", 2, () =>
+                    {
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        _logger.Debug($"Instruction Fetched: {"sra r8"} with param {registerCode}");
+
+                        byte carryOut;
+
+                        if (registerCode < registries.Count)
+                        {
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                byte originalValue = _memory.memoryMap[memoryPointer];
+                                carryOut = (byte)(originalValue & 0b0000_0001);
+                                _memory.memoryMap[memoryPointer] = (byte)((originalValue >> 1) | (originalValue & 0b1000_0000));
+
+                                _cycles += 2;
+                                _flags.setZeroFlagZ(_memory.memoryMap[memoryPointer]);
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                byte originalValue = register.Value;
+                                carryOut = (byte)(originalValue & 0b0000_0001);
+                                register.Value = (byte)((originalValue >> 1) | (originalValue & 0b1000_0000));
+
+                                _flags.setZeroFlagZ(register.Value);
+                            }
+
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(carryOut);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[sra r8] an error occurred");
+                        }
+                    });
+                case 0b0011_0000:
+                    return new Instruction("swap r8", 2, () =>
+                    {
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        _logger.Debug($"Instruction Fetched: {"swap r8"} with param {registerCode}");
+
+                        if (registerCode < registries.Count)
+                        {
+                            byte newValue;
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                byte firstFour = (byte)((_memory.memoryMap[memoryPointer] & 0b1111_0000) >> 4);
+                                byte lastFour = (byte)((_memory.memoryMap[memoryPointer] & 0b0000_1111) << 4);
+
+
+                                newValue = (byte)(firstFour | lastFour);
+                                _memory.memoryMap[memoryPointer] = newValue;
+
+                                _cycles += 2;
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                byte firstFour = (byte)((register.Value & 0b1111_0000) >> 4);
+                                byte lastFour = (byte)((register.Value & 0b0000_1111) << 4);
+
+                                newValue = (byte)(firstFour | lastFour);
+                                register.Value = newValue;
+                            }
+
+                            _flags.setZeroFlagZ(newValue);
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(0);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[swap r8] an error occurred");
+                        }
+                    });
+                case 0b0011_1000:
+                    return new Instruction("srl r8", 2, () =>
+                    {
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        _logger.Debug($"Instruction Fetched: {"srl r8"} with param {registerCode}");
+
+                        byte carryOut;
+
+                        if (registerCode < registries.Count)
+                        {
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                carryOut = (byte)(_memory.memoryMap[memoryPointer] & 0b0000_0001);
+                                _memory.memoryMap[memoryPointer] = (byte)(_memory.memoryMap[memoryPointer] >> 1);
+
+                                _cycles += 2;
+                                _flags.setZeroFlagZ(_memory.memoryMap[memoryPointer]);
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                carryOut = (byte)(register.Value & 0b0000_0001);
+                                register.Value = (byte)(register.Value >> 1);
+
+                                _flags.setZeroFlagZ(register.Value);
+                            }
+
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(0);
+                            _flags.setCarryFlagC(carryOut);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[srl r8] an error occurred");
+                        }
+                    });
+                default:
+                    break;
+            }
+            switch (opcode & 0b1100_0000)
+            {
+                case 0b0100_0000:
+                    return new Instruction("bit b3, r8", 2, () =>
+                    {
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        byte bitIndex = (byte)((opcode & 0b0011_1000) >> 3);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+
+                        _logger.Debug($"Instruction Fetched: {"bit b3, r8"} with param {registerCode} and index {bitIndex}");
+
+                        if (registerCode < registries.Count)
+                        {
+                            byte bit;
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                bit = (byte)((_memory.memoryMap[memoryPointer] >> bitIndex) & 0b0000_0001);
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                bit = (byte)((register.Value >> bitIndex) & 0b0000_0001);
+                            }
+
+
+                            _flags.setZeroFlagZ(bit);
+                            _flags.setSubtractionFlagN(0);
+                            _flags.SetHalfCarryFlagH(1);
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[bit b3, r8] an error occurred");
+                        }
+                    });
+                case 0b1000_0000:
+                    return new Instruction("res b3, r8", 2, () =>
+                    {
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        byte bitIndex = (byte)((opcode & 0b0011_1000) >> 3);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+
+                        _logger.Debug($"Instruction Fetched: {"res b3, r8"} with param {registerCode} and index {bitIndex}");
+
+                        if (registerCode < registries.Count)
+                        {
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                _memory.memoryMap[memoryPointer] &= (byte)~(1 << bitIndex);
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                register.Value &= (byte)~(1 << bitIndex);
+
+                            }
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[res b3, r8] an error occurred");
+                        }
+                    });
+                case 0b1100_0000:
+                    return new Instruction("set b3, r8", 2, () =>
+                    {
+                        List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
+
+                        byte bitIndex = (byte)((opcode & 0b0011_1000) >> 3);
+                        byte registerCode = (byte)(opcode & 0b0000_0111);
+
+                        _logger.Debug($"Instruction Fetched: {"set b3, r8"} con parametro registro {registerCode} e indice bit {bitIndex}");
+
+                        if (registerCode < registries.Count)
+                        {
+                            if (registerCode == 0b110)
+                            {
+                                ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
+
+                                _memory.memoryMap[memoryPointer] |= (byte)(1 << bitIndex);
+
+                                _cycles += 2;
+                            }
+                            else
+                            {
+                                ByteRegister register = registries[registerCode]!;
+
+                                register.Value |= (byte)(1 << bitIndex);
+                            }
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[set b3, r8] si è verificato un errore");
+                        }
+                    });
                 default:
                     break;
             }

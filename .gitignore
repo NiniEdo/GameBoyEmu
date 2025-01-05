@@ -2,3 +2,4 @@ GameBoyEmu/*.gb
 GameBoyEmu/bin/*
 GameBoyEmu/obj/*
 .vs/*
+gb-test-roms/
