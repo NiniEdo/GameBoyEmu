@@ -14,13 +14,13 @@ namespace GameBoyEmu.FlagsHelperNamespace
             _AF = AF;
         }
 
-        public void setZeroFlagZ(uint result)
+        public void SetZeroFlagZ(uint result)
         {
             int intValue = result == 0 ? 0 : 1;
             _AF[0] = (byte)((_AF[0] & 0b0111_1111) | (intValue << 7));
         }
 
-        public void setSubtractionFlagN(byte value)
+        public void SetSubtractionFlagN(byte value)
         {
             _AF[0] = (byte)((_AF[0] & 0b1011_1111) | (value << 6));
         }
@@ -69,7 +69,7 @@ namespace GameBoyEmu.FlagsHelperNamespace
             _AF[0] = (byte)((_AF[0] & 0b1101_1111) | (value << 5));
         }
 
-        public void setCarryFlagC(int value, bool is16bits, bool carryOut)
+        public void SetCarryFlagC(int value, bool is16bits, bool carryOut)
         {
             int intValue = 0;
             if (!carryOut)
@@ -88,23 +88,23 @@ namespace GameBoyEmu.FlagsHelperNamespace
             _AF[0] = (byte)((_AF[0] & 0b1110_1111) | (intValue << 4));
         }
 
-        public void setCarryFlagC(int value)
+        public void SetCarryFlagC(int value)
         {
             _AF[0] = (byte)((_AF[0] & 0b1110_1111) | (value << 4));
         }
-        public byte getZeroFlagZ()
+        public byte GetZeroFlagZ()
         {
             return (byte)((_AF[0] & 0b1000_0000) >> 7);
         }
-        public byte getSubtractionFlagN()
+        public byte GetSubtractionFlagN()
         {
             return (byte)((_AF[0] & 0b0100_0000) >> 6);
         }
-        public byte getHalfCarryFlagH()
+        public byte GetHalfCarryFlagH()
         {
             return (byte)((_AF[0] & 0b0010_0000) >> 5);
         }
-        public byte getCarryFlagC()
+        public byte GetCarryFlagC()
         {
             return (byte)((_AF[0] & 0b0001_0000) >> 4);
         }

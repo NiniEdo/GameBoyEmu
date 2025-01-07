@@ -18,16 +18,17 @@ namespace GameBoyEmu.MemoryNamespace
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private byte[] _memoryMap = new byte[0x1_0000]; //2^16 addresses (65.536)
         Cartridge _cartridge = new Cartridge();
-        public byte[] memoryMap
+        public byte this[ushort address]
         {
             get
             {
-                _logger.Info("accessed memory map"); // debug pourposes only
-                return _memoryMap;
+                _logger.Debug($"Read memory address 0x{address:X4}");
+                return _memoryMap[address];
             }
             set
             {
-                _memoryMap = value;
+                _logger.Info($"Wrote memory address 0x{address:X4} with value 0x{value:X2}");
+                _memoryMap[address] = value;
             }
         }
 
@@ -38,13 +39,20 @@ namespace GameBoyEmu.MemoryNamespace
         {
             try
             {
-                _romDump = _cartridge.loadRomFromCartridge();
+                _romDump = _cartridge.LoadRomFromCartridge();
+                if (_romDump == null)
+                {
+                    throw new CartridgeException("Rom dump is null, aborting");
+                }
+                else
+                {
+                    initializeRom();
+                }
             }
-            catch (CartridgeException CAex)
+            catch (CartridgeException)
             {
-                _logger.Fatal("Error: " + CAex.Message);
+                throw;
             }
-            initializeRom();
         }
 
 
