@@ -215,40 +215,41 @@ namespace GameBoyEmu.CpuNamespace
                     return new Instruction("daa", 1, () =>
                     {
                         byte A = _AF[1];
-                        bool subtraction = _flags.GetSubtractionFlagN() == 0 ? true : false;
+                        byte correction = 0;
+                        bool setCarry = false;
 
-                        if (!subtraction)
+                        if (_flags.GetSubtractionFlagN() == 0) 
                         {
-                            if ((A & 0x0F) > 9 || _flags.GetHalfCarryFlagH() == 1)
+                            if (_flags.GetHalfCarryFlagH() == 1 || (A & 0x0F) > 9)
                             {
-                                A += 0x06;
+                                correction += 0x06;
                             }
-
                             if (_flags.GetCarryFlagC() == 1 || A > 0x99)
                             {
-                                A += 0x60;
+                                correction += 0x60;
+                                setCarry = true;
                             }
+                            A += correction;
                         }
-                        else
+                        else 
                         {
-                            if ((A & 0x0F) > 9 || _flags.GetHalfCarryFlagH() == 1)
+                            if (_flags.GetHalfCarryFlagH() == 1)
                             {
-                                A -= 0x06;
+                                correction += 0x06;
                             }
-
                             if (_flags.GetCarryFlagC() == 1)
                             {
-                                A -= 0x60;
+                                correction += 0x60;
+                                setCarry = true;
                             }
+                            A -= correction;
                         }
 
-                        _AF[1] = A;
+                        _flags.SetZeroFlagZ(A);
+                        _flags.SetHalfCarryFlagH(0); 
+                        _flags.SetCarryFlagC(setCarry ? 1 : 0);
 
-                        _logger.Debug($"Instruction Fetched: {"daa"}");
-
-                        _flags.SetZeroFlagZ(_AF[1]);
-                        _flags.SetHalfCarryFlagH(0);
-                        _flags.SetCarryFlagC(A > 0x99 ? 1 : 0);
+                        _AF[1] = A; 
 
                     });
                 case 0b0010_1111:
