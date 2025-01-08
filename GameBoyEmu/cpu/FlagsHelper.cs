@@ -16,8 +16,12 @@ namespace GameBoyEmu.FlagsHelperNamespace
 
         public void SetZeroFlagZ(uint result)
         {
-            int intValue = result == 0 ? 0 : 1;
+            int intValue = result == 0 ? 1 : 0;
             _AF[0] = (byte)((_AF[0] & 0b0111_1111) | (intValue << 7));
+        }
+        public void SetZeroFlagDirectlyZ(byte result)
+        {
+            _AF[0] = (byte)((_AF[0] & 0b0111_1111) | (result << 7));
         }
 
         public void SetSubtractionFlagN(byte value)

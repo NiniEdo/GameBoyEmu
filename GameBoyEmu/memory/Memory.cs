@@ -1,5 +1,4 @@
-﻿using GameBoyEmu.CpuNamespace;
-using GameBoyEmu.Exceptions;
+﻿using GameBoyEmu.Exceptions;
 using GameBoyEmu.CartridgeNamespace;
 using NLog;
 using System;
@@ -18,7 +17,7 @@ namespace GameBoyEmu.MemoryNamespace
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private byte[] _memoryMap = new byte[0x1_0000]; //2^16 addresses (65.536)
         Cartridge _cartridge = new Cartridge();
-        public byte this[ushort address]
+        public virtual byte this[ushort address]
         {
             get
             {
@@ -27,13 +26,24 @@ namespace GameBoyEmu.MemoryNamespace
             }
             set
             {
-                _logger.Info($"Wrote memory address 0x{address:X4} with value 0x{value:X2}");
-                _memoryMap[address] = value;
+                
+                if (address > ROM_MAX_ADDRESS)
+                {
+                    _logger.Info($"Wrote memory address 0x{address:X4} with value 0x{value:X2}");
+                    _memoryMap[address] = value;
+                }
+                else
+                {
+                    _logger.Info($"[Trying] to write memory address 0x{address:X4} with value 0x{value:X2}");
+                }
             }
         }
 
         private byte[] _romDump = Array.Empty<byte>();
 
+        protected Memory(bool skipInitialization)
+        {
+        }
 
         public Memory()
         {

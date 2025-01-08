@@ -14,12 +14,14 @@ namespace GameBoyEmu
         public GameBoy()
         {
             _memory = new Memory();
-            _cpu = new Cpu(ref _memory);
+            _cpu = new Cpu(_memory);
         }
 
         public void Start()
         {
             _cpu.Execute();
         }
+
+
     }
 }

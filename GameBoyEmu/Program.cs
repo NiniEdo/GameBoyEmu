@@ -24,7 +24,6 @@ namespace GameBoyEmu
                 _logger.Error($"Emulation stopped: {ex.Message}");
             }
 
-
         }
     }
 }
