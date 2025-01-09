@@ -90,7 +90,7 @@ namespace GameBoyEmu.CpuNamespace
                         new ByteRegister(_DE, 1),
                         new ByteRegister(_DE, 0),
                         new ByteRegister(_HL, 1),
-                        new ByteRegister(_HL, 0),   
+                        new ByteRegister(_HL, 0),
                         null, //null because it's [hl] and will be handled separatly
                         new ByteRegister(_AF, 1),
                     }
@@ -780,6 +780,8 @@ namespace GameBoyEmu.CpuNamespace
                         byte registerCode = (byte)(opcode & 0b0000_0111);
                         List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
 
+                        byte carryIn = _flags.GetCarryFlagC();
+
                         if (registerCode < registries.Count)
                         {
                             _logger.Debug($"Instruction Fetched: {"adc a, r8"}, register {registerCode}");
@@ -787,21 +789,21 @@ namespace GameBoyEmu.CpuNamespace
                             if (registerCode == 0b110)
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
-                                valueToAdd = (byte)(_memory[pointerValue] + _flags.GetCarryFlagC());
+                                valueToAdd = (byte)(_memory[pointerValue]);
 
                                 _cycles += 1;
                             }
                             else
                             {
-                                valueToAdd = (byte)(registries[registerCode]!.Value + _flags.GetCarryFlagC());
+                                valueToAdd = (byte)(registries[registerCode]!.Value);
                             }
 
-                            byte result = (byte)(_AF[1] + valueToAdd);
+                            byte result = (byte)(_AF[1] + valueToAdd + carryIn);
 
                             _flags.SetZeroFlagZ(result);
                             _flags.SetSubtractionFlagN(0);
-                            _flags.SetHalfCarryFlagH(_AF[1], valueToAdd, true, false);
-                            _flags.SetCarryFlagC(_AF[1] + valueToAdd, false, false);
+                            _flags.SetHalfCarryFlagH(_AF[1], valueToAdd, carryIn, true);
+                            _flags.SetCarryFlagC(_AF[1], valueToAdd, carryIn);
 
                             _AF[1] = result;
                         }
@@ -853,29 +855,30 @@ namespace GameBoyEmu.CpuNamespace
                         byte registerCode = (byte)(opcode & 0b0000_0111);
                         List<ByteRegister?> registries = _8bitsRegistries[paramsType.r8];
 
+                        byte carryIn = _flags.GetCarryFlagC();
                         if (registerCode < registries.Count)
                         {
                             byte operand;
                             if (registerCode == 0b110)
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
-                                operand = (byte)(_memory[pointerValue] + _flags.GetCarryFlagC());
+                                operand = (byte)(_memory[pointerValue] );
 
                                 _cycles += 1;
                             }
                             else
                             {
-                                operand = (byte)(registries[registerCode]!.Value + _flags.GetCarryFlagC());
+                                operand = (byte)(registries[registerCode]!.Value);
                             }
 
-                            byte result = (byte)(_AF[1] - operand);
+                            byte result = (byte)((_AF[1] - operand) - carryIn);
 
                             _logger.Debug($"Instruction Fetched: {"sbc a, r8"}, register {registerCode}, operand {operand} result {result}");
 
                             _flags.SetZeroFlagZ(result);
                             _flags.SetSubtractionFlagN(1);
-                            _flags.SetHalfCarryFlagH(_AF[1], operand, false, false);
-                            _flags.SetCarryFlagC(operand > _AF[1] ? 1 : 0);
+                            _flags.SetHalfCarryFlagH(_AF[1], operand, carryIn, false);
+                            _flags.SetCarryFlagC(operand + carryIn > _AF[1] ? 1 : 0);
 
                             _AF[1] = result;
                         }
