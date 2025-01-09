@@ -41,6 +41,7 @@ namespace ConsoleAppTESTS
                         var initial = obj["initial"] as JsonObject;
                         if (initial != null)
                         {
+                            mem.Clear();
                             cpu.AF[1] = initial["a"]!.GetValue<byte>();
                             cpu.BC[0] = initial["c"]!.GetValue<byte>();
                             cpu.BC[1] = initial["b"]!.GetValue<byte>();
@@ -51,10 +52,10 @@ namespace ConsoleAppTESTS
                             cpu.HL[1] = initial["h"]!.GetValue<byte>();
                             ushort pcValue = initial["pc"]!.GetValue<ushort>();
                             ushort spValue = initial["sp"]!.GetValue<ushort>();
-                            cpu.PC[0] = (byte)(pcValue & 0xFF);       
-                            cpu.PC[1] = (byte)((pcValue >> 8) & 0xFF); 
-                            cpu.SP[0] = (byte)(spValue & 0xFF);       
-                            cpu.SP[1] = (byte)((spValue >> 8) & 0xFF); 
+                            cpu.PC[0] = (byte)(pcValue & 0xFF);
+                            cpu.PC[1] = (byte)((pcValue >> 8) & 0xFF);
+                            cpu.SP[0] = (byte)(spValue & 0xFF);
+                            cpu.SP[1] = (byte)((spValue >> 8) & 0xFF);
                             mem[0xFFFF] = initial["ie"]!.GetValue<byte>();
                             cpu.ImeFlag = initial["ime"]!.GetValue<byte>() == 1;
                             if (initial["ram"] is JsonArray ramArray)
@@ -72,8 +73,10 @@ namespace ConsoleAppTESTS
                             }
                         }
 
-                        _logger.Info($"Test {name}");
                         cpu.KeepRunning = false;
+                        if (name == "69 0079")
+                        {
+                        };
                         cpu.Execute();
 
                         var final = obj["final"] as JsonObject;

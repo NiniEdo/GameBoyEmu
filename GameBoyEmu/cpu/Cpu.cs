@@ -90,7 +90,7 @@ namespace GameBoyEmu.CpuNamespace
                         new ByteRegister(_DE, 1),
                         new ByteRegister(_DE, 0),
                         new ByteRegister(_HL, 1),
-                        new ByteRegister(_HL, 0),
+                        new ByteRegister(_HL, 0),   
                         null, //null because it's [hl] and will be handled separatly
                         new ByteRegister(_AF, 1),
                     }
