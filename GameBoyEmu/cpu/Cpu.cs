@@ -155,6 +155,25 @@ namespace GameBoyEmu.CpuNamespace
                         _logger.Debug($"Instruction Fetched: {"NOP"}");
                         return;
                     });
+                case 0b0000_1000:
+                    return new Instruction("LD [imm16], SP", 5, () =>
+                    {
+                        byte lowByte = Fetch();
+                        byte highByte = Fetch();
+
+                        _logger.Debug($"Instruction Fetched: {"LD [imm16], SP"} with params: {lowByte}, {highByte}");
+
+                        ushort memoryPointer = (ushort)((highByte << 8) | lowByte);
+                        if (memoryPointer + 1 <= Memory.MEM_MAX_ADDRESS)
+                        {
+                            _memory[memoryPointer] = _SP[0];
+                            _memory[(ushort)(memoryPointer + 1)] = _SP[1];
+                        }
+                        else
+                        {
+                            throw new InstructionExcecutionException("[LD [imm16], SP] an error occurred");
+                        }
+                    });
                 case 0b0000_0111:
                     return new Instruction("rlca", 1, () =>
                     {
@@ -218,7 +237,7 @@ namespace GameBoyEmu.CpuNamespace
                         byte correction = 0;
                         bool setCarry = false;
 
-                        if (_flags.GetSubtractionFlagN() == 0) 
+                        if (_flags.GetSubtractionFlagN() == 0)
                         {
                             if (_flags.GetHalfCarryFlagH() == 1 || (A & 0x0F) > 9)
                             {
@@ -231,7 +250,7 @@ namespace GameBoyEmu.CpuNamespace
                             }
                             A += correction;
                         }
-                        else 
+                        else
                         {
                             if (_flags.GetHalfCarryFlagH() == 1)
                             {
@@ -246,10 +265,10 @@ namespace GameBoyEmu.CpuNamespace
                         }
 
                         _flags.SetZeroFlagZ(A);
-                        _flags.SetHalfCarryFlagH(0); 
+                        _flags.SetHalfCarryFlagH(0);
                         _flags.SetCarryFlagC(setCarry ? 1 : 0);
 
-                        _AF[1] = A; 
+                        _AF[1] = A;
 
                     });
                 case 0b0010_1111:
@@ -273,9 +292,10 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b0011_1111:
                     return new Instruction("ccf", 1, () =>
                     {
-                        _flags.SetCarryFlagC((byte)~_flags.GetCarryFlagC());
-
                         _logger.Debug($"Instruction Fetched: {"ccf"}");
+
+                        byte value = (byte)(_flags.GetCarryFlagC() == 0 ? 0 : 1);
+                        _flags.SetCarryFlagC(value);
                         _flags.SetSubtractionFlagN(0);
                         _flags.SetHalfCarryFlagH(0);
                     });
@@ -413,25 +433,7 @@ namespace GameBoyEmu.CpuNamespace
                             throw new InstructionExcecutionException("[LD A, [r16mem]] an error occurred");
                         }
                     });
-                case 0b1000:
-                    return new Instruction("LD [imm16], SP", 5, () =>
-                    {
-                        byte lowByte = Fetch();
-                        byte highByte = Fetch();
 
-                        _logger.Debug($"Instruction Fetched: {"LD [imm16], SP"} with params: {lowByte}, {highByte}");
-
-                        ushort memoryPointer = (ushort)((highByte << 8) | lowByte);
-                        if (memoryPointer + 1 <= Memory.MEM_MAX_ADDRESS)
-                        {
-                            _memory[memoryPointer] = _SP[0];
-                            _memory[(ushort)(memoryPointer + 1)] = _SP[1];
-                        }
-                        else
-                        {
-                            throw new InstructionExcecutionException("[LD [imm16], SP] an error occurred");
-                        }
-                    });
                 case 0b0011:
                     return new Instruction("INC r16", 2, () =>
                     {

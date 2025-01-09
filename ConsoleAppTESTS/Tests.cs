@@ -49,8 +49,12 @@ namespace ConsoleAppTESTS
                             cpu.AF[0] = initial["f"]!.GetValue<byte>();
                             cpu.HL[0] = initial["l"]!.GetValue<byte>();
                             cpu.HL[1] = initial["h"]!.GetValue<byte>();
-                            cpu.PC = BitConverter.GetBytes(initial["pc"]!.GetValue<ushort>());
-                            cpu.SP = BitConverter.GetBytes(initial["sp"]!.GetValue<ushort>());
+                            ushort pcValue = initial["pc"]!.GetValue<ushort>();
+                            ushort spValue = initial["sp"]!.GetValue<ushort>();
+                            cpu.PC[0] = (byte)(pcValue & 0xFF);       
+                            cpu.PC[1] = (byte)((pcValue >> 8) & 0xFF); 
+                            cpu.SP[0] = (byte)(spValue & 0xFF);       
+                            cpu.SP[1] = (byte)((spValue >> 8) & 0xFF); 
                             mem[0xFFFF] = initial["ie"]!.GetValue<byte>();
                             cpu.ImeFlag = initial["ime"]!.GetValue<byte>() == 1;
                             if (initial["ram"] is JsonArray ramArray)
