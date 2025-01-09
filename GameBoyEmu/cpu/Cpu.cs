@@ -294,7 +294,7 @@ namespace GameBoyEmu.CpuNamespace
                     {
                         _logger.Debug($"Instruction Fetched: {"ccf"}");
 
-                        byte value = (byte)(_flags.GetCarryFlagC() == 0 ? 0 : 1);
+                        byte value = (byte)(_flags.GetCarryFlagC() == 0 ? 1 : 0);
                         _flags.SetCarryFlagC(value);
                         _flags.SetSubtractionFlagN(0);
                         _flags.SetHalfCarryFlagH(0);
