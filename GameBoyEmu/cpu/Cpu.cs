@@ -862,7 +862,7 @@ namespace GameBoyEmu.CpuNamespace
                             if (registerCode == 0b110)
                             {
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
-                                operand = (byte)(_memory[pointerValue] );
+                                operand = (byte)(_memory[pointerValue]);
 
                                 _cycles += 1;
                             }
@@ -873,7 +873,7 @@ namespace GameBoyEmu.CpuNamespace
 
                             byte result = (byte)((_AF[1] - operand) - carryIn);
 
-                            _logger.Debug($"Instruction Fetched: {"sbc a, r8"}, register {registerCode}, operand {operand} result {result}");
+                            _logger.Debug($"Instruction Fetched: {"sbc a, r8"}, register {registerCode}, operand {operand + carryIn} result {result}");
 
                             _flags.SetZeroFlagZ(result);
                             _flags.SetSubtractionFlagN(1);
@@ -1061,15 +1061,16 @@ namespace GameBoyEmu.CpuNamespace
                     {
                         byte imm8 = Fetch();
 
-                        byte operand = (byte)(imm8 + _flags.GetCarryFlagC());
-                        byte result = (byte)(_AF[1] + operand);
+                        byte carryIn = _flags.GetCarryFlagC();
+                        byte operand = (byte)(imm8);
+                        byte result = (byte)(_AF[1] + operand + carryIn);
 
-                        _logger.Debug($"Instruction Fetched: {"adc a, imm8"} operand {imm8} result {result}");
+                        _logger.Debug($"Instruction Fetched: {"adc a, imm8"} operand {imm8 + carryIn} result {result}");
 
                         _flags.SetZeroFlagZ(result);
                         _flags.SetSubtractionFlagN(0);
-                        _flags.SetHalfCarryFlagH(_AF[1], operand, true, false);
-                        _flags.SetCarryFlagC(_AF[1] + operand, false, false);
+                        _flags.SetHalfCarryFlagH(_AF[1], operand, carryIn, true);
+                        _flags.SetCarryFlagC(_AF[1], operand, carryIn);
 
                         _AF[1] = result;
                     });
@@ -1094,15 +1095,15 @@ namespace GameBoyEmu.CpuNamespace
                     {
                         byte imm8 = Fetch();
 
-                        byte operand = (byte)(imm8 + _flags.GetCarryFlagC());
-                        byte result = (byte)(_AF[1] - operand);
+                        byte carryIn = _flags.GetCarryFlagC();
+                        byte result = (byte)((_AF[1] - imm8) - carryIn);
 
-                        _logger.Debug($"Instruction Fetched: {"sbc a, imm8"} operand {imm8} result {result}");
+                        _logger.Debug($"Instruction Fetched: {"sbc a, imm8"} operand {imm8 + carryIn} result {result}");
 
                         _flags.SetZeroFlagZ(result);
                         _flags.SetSubtractionFlagN(1);
-                        _flags.SetHalfCarryFlagH(_AF[1], operand, false, false);
-                        _flags.SetCarryFlagC(operand > _AF[1] ? 1 : 0);
+                        _flags.SetHalfCarryFlagH(_AF[1], imm8, carryIn, false);
+                        _flags.SetCarryFlagC((imm8 + carryIn) > AF[1] ? 1 : 0);
 
                         _AF[1] = result;
                     });
@@ -1426,7 +1427,10 @@ namespace GameBoyEmu.CpuNamespace
                             Pop(out byte highByte, out byte lowByte);
 
                             _logger.Debug($"Instruction Fetched: {"pop r16stk"} with param {registerCode}");
-
+                            if (registerCode == 0b11)
+                            {
+                                lowByte &= 0b1111_0000;
+                            }
                             register[0] = lowByte;
                             register[1] = highByte;
                         }
@@ -1522,7 +1526,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort memoryPointer = (ushort)((_HL[1] << 8) | _HL[0]);
 
                                 carryOut = (byte)((_memory[memoryPointer] & 0b0000_0001));
-                                _memory[memoryPointer] = (byte)((_memory[memoryPointer] >> 1) | carryOut);
+                                _memory[memoryPointer] = (byte)((_memory[memoryPointer] >> 1) | carryOut << 7);
 
                                 _cycles += 2;
                                 _flags.SetZeroFlagZ(_memory[memoryPointer]);
@@ -1532,7 +1536,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ByteRegister register = registries[registerCode]!;
 
                                 carryOut = (byte)((register.Value & 0b0000_0001));
-                                register.Value = (byte)((register.Value >> 1) | carryOut);
+                                register.Value = (byte)((register.Value >> 1) | carryOut << 7);
 
                                 _flags.SetZeroFlagZ(register.Value);
                             }
