@@ -13,6 +13,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Runtime.Intrinsics.X86;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Win32;
+using GameBoyEmu.InterruptsManagerNamespace;
 
 
 namespace GameBoyEmu.CpuNamespace
@@ -41,6 +42,7 @@ namespace GameBoyEmu.CpuNamespace
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private Memory _memory;
         private FlagsHelper _flags;
+        private InterruptsManager _interrupts;
 
         //16 bits
         private byte[] _AF = new byte[2] { 0x80, 0x01 };
@@ -51,7 +53,6 @@ namespace GameBoyEmu.CpuNamespace
         private byte[] _PC = new byte[2] { 0x00, 0x01 };
 
         private byte _instructionRegister = 0x00;
-        private bool imeFlag = false;
         private int _cycles = 0;
         private bool keepRunning = true;
 
@@ -64,13 +65,13 @@ namespace GameBoyEmu.CpuNamespace
         public byte[] HL { get => _HL; set => _HL = value; }
         public byte[] SP { get => _SP; set => _SP = value; }
         public byte[] PC { get => _PC; set => _PC = value; }
-        public bool ImeFlag { get => imeFlag; set => imeFlag = value; }
         public byte InstructionRegister { get => _instructionRegister; set => _instructionRegister = value; }
         public bool KeepRunning { get => keepRunning; set => keepRunning = value; }
 
-        public Cpu(Memory _mem)
+        public Cpu(Memory _mem, InterruptsManager _inter)
         {
             _flags = new FlagsHelper(ref _AF);
+            _interrupts = _inter;
             this._memory = _mem;
             _16bitsRegistries = new()
             {
@@ -1185,7 +1186,7 @@ namespace GameBoyEmu.CpuNamespace
                         _PC[0] = lowByte;
                         _PC[1] = highByte;
 
-                        imeFlag = true;
+                        _interrupts.EnableInterrupts();
                     });
                 case 0b1100_0011:
                     return new Instruction("jp n16", 4, () =>
@@ -1327,14 +1328,14 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1111_0011:
                     return new Instruction("di", 1, () =>
                     {
-                        imeFlag = false;
+                        _interrupts.DisableInterrupts();
 
                         _logger.Debug($"Instruction Fetched: {"di"}");
                     });
                 case 0b1111_1011:
                     return new Instruction("ei", 1, () =>
                     {
-                        imeFlag = true;
+                        _interrupts.EI(_PC);
 
                         _logger.Debug($"Instruction Fetched: {"ei"}");
                     });
@@ -2015,9 +2016,11 @@ namespace GameBoyEmu.CpuNamespace
             ushort pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
             while (true)
             {
-                if (imeFlag)
+                _interrupts.HandleEiIfNeeded(pcValue);
+
+                if (_interrupts.AreEnabled())
                 {
-                    byte result = (byte)(_memory[0xFFFF] & _memory[0xFF0F]);
+                    byte result = (byte)(_interrupts.IE & _interrupts.IF);
 
                     byte vBlank = (byte)(result & 0b0000_0001);
                     byte lcd = (byte)((result & 0b0000_0010) >> 1);

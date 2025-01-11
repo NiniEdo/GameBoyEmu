@@ -8,8 +8,6 @@ namespace ConsoleAppTESTS
     {
         static void Main(string[] args)
         {
-            
-
             Tests test = new Tests();
 
             test.Start();

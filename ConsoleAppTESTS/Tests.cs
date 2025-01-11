@@ -7,6 +7,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using NLog;
+using GameBoyEmu.InterruptsManagerNamespace;
 
 namespace ConsoleAppTESTS
 {
@@ -15,6 +16,7 @@ namespace ConsoleAppTESTS
         string[] files;
         TestMemory mem;
         Cpu cpu;
+        InterruptsTestManager interruptsTestManager;
         private Logger _logger = LogManager.GetCurrentClassLogger();
 
         public Tests()
@@ -22,7 +24,8 @@ namespace ConsoleAppTESTS
             files = Directory.GetFiles(@"..\\..\\..\\tests\\sm83\\v1");
 
             mem = new TestMemory();
-            cpu = new Cpu(mem);
+            interruptsTestManager = new InterruptsTestManager(mem);
+            cpu = new Cpu(mem, interruptsTestManager);
         }
 
         public void Start()
@@ -56,8 +59,22 @@ namespace ConsoleAppTESTS
                             cpu.PC[1] = (byte)((pcValue >> 8) & 0xFF);
                             cpu.SP[0] = (byte)(spValue & 0xFF);
                             cpu.SP[1] = (byte)((spValue >> 8) & 0xFF);
-                            mem[0xFFFF] = initial["ie"]!.GetValue<byte>();
-                            cpu.ImeFlag = initial["ime"]!.GetValue<byte>() == 1;
+                            interruptsTestManager.IE = initial["ie"]!.GetValue<byte>();
+                            if (initial["ie"]!.GetValue<byte>() == 1)
+                            {
+                                interruptsTestManager.InterruptFlag = true;
+                            }
+                            else {
+                                interruptsTestManager.InterruptFlag = false;
+                            }
+                            if (initial["ime"]!.GetValue<byte>() == 1)
+                            {
+                                interruptsTestManager.EnableInterrupts();
+                            }
+                            else
+                            {
+                                interruptsTestManager.DisableInterrupts();
+                            }
                             if (initial["ram"] is JsonArray ramArray)
                             {
                                 for (int i = 0; i < ramArray.Count; i++)
@@ -74,13 +91,9 @@ namespace ConsoleAppTESTS
                         }
 
                         cpu.KeepRunning = false;
-                        if (name == "69 0079")
-                        {
-                        };
                         cpu.Execute();
 
                         var final = obj["final"] as JsonObject;
-                        byte[] AF;
                         if (final != null)
                         {
                             bool A = cpu.AF[1] == final["a"]!.GetValue<byte>();
@@ -93,7 +106,22 @@ namespace ConsoleAppTESTS
                             bool H = cpu.HL[1] == final["h"]!.GetValue<byte>();
                             bool PC = BitConverter.ToUInt16(cpu.PC, 0) == final["pc"]!.GetValue<ushort>();
                             bool SP = BitConverter.ToUInt16(cpu.SP, 0) == final["sp"]!.GetValue<ushort>();
-                            bool IME = cpu.ImeFlag == (final["ime"]!.GetValue<byte>() == 1);
+                            byte ime;
+                            if (interruptsTestManager.AreEnabled())
+                            {
+                                ime = 1;
+                            }
+                            else
+                            {
+                                ime = 0;
+                            }
+                            bool IME = ime == (final["ime"]!.GetValue<byte>());
+                            bool EI;
+                            if (final["ei"] != null)
+                            {
+                                EI = (interruptsTestManager.InterruptFlag ? 1 : 0) == (final["ei"]!.GetValue<byte>());
+                            }
+                            else { EI = true; }
                             bool RAM = true;
 
                             if (final["ram"] is JsonArray finalRamArray)
@@ -114,7 +142,7 @@ namespace ConsoleAppTESTS
                                 }
                             }
 
-                            bool allTestsPassed = A && C && B && E && D && F && L && H && PC && SP && IME && RAM;
+                            bool allTestsPassed = A && C && B && E && D && F && L && H && PC && SP && IME && RAM && EI;
                             _logger.Info($"Test {name}: {(allTestsPassed ? "Passed" : "Failed")}");
                             if (!allTestsPassed)
                             {
@@ -128,7 +156,7 @@ namespace ConsoleAppTESTS
                                 _logger.Info($"Expected H: {final["h"]!.GetValue<byte>()}, Got: {cpu.HL[1]}");
                                 _logger.Info($"Expected PC: {final["pc"]!.GetValue<ushort>()}, Got: {BitConverter.ToUInt16(cpu.PC, 0)}");
                                 _logger.Info($"Expected SP: {final["sp"]!.GetValue<ushort>()}, Got: {BitConverter.ToUInt16(cpu.SP, 0)}");
-                                _logger.Info($"Expected IME: {final["ime"]!.GetValue<byte>() == 1}, Got: {cpu.ImeFlag}");
+                                _logger.Info($"Expected IME: {final["ime"]!.GetValue<byte>() == 1}, Got: {ime}");
                                 _logger.Info($"RAM: {RAM}");
                                 return;
                             }
