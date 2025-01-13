@@ -18,7 +18,6 @@ using GameBoyEmu.InterruptsManagerNamespace;
 
 namespace GameBoyEmu.CpuNamespace
 {
-    //TODO: Implement Interrupts
     //TODO: Handle clock frequency
     class ByteRegister
     {
@@ -315,16 +314,17 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b0001_0000:
                     return new Instruction("stop", 0, () =>
                     {
-                        // TODO: handle interrupts
-                        // Enter very low power mode
-                        //while (true)
-                        //{
-                        //    byte result = (byte)(_memory[0xFFFF] & _memory[0xFF0F]);
-                        //    if (result != 0)
-                        //    {
-                        //        break;
-                        //    }
-                        //}
+                        _logger.Debug($"Instruction Fetched: {"stop"}");
+
+                        while (true)
+                        {
+                            byte result = (byte)(_interrupts.IE & _interrupts.IF);
+                            byte joypad = (byte)((result & 0b0000_1000) >> 4);
+                            if (joypad != 0)
+                            {
+                                break;
+                            }
+                        }
                     });
                 default:
                     break;
@@ -647,43 +647,42 @@ namespace GameBoyEmu.CpuNamespace
         {
             Instruction halt = new Instruction("halt", 0, () =>
             {
-                //TODO: handle interrupts
-                //if (imeFlag)
-                //{
-                //    // Enter low-power mode until an interrupt occurs
-                //    while (true)
-                //    {
-                //        byte result = (byte)(_memory[0xFFFF] & _memory[0xFF0F]);
-                //        if (result != 0)
-                //        {
-                //            break;
-                //        }
-                //    }
-                //}
-                //else
-                //{
-                //    byte result = (byte)(_memory[0xFFFF] & _memory[0xFF0F]);
-                //    if (result == 0)
-                //    {
-                //        // No interrupt pending, wait for one to become pending
-                //        while (true)
-                //        {
-                //            result = (byte)(_memory[0xFFFF] & _memory[0xFF0F]);
-                //            if (result != 0)
-                //            {
-                //                break;
-                //            }
-                //        }
-                //    }
-                //    else
-                //    {
-                //        // Interrupt pending, continue execution but read the next byte twice
-                //        ushort pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
-                //        byte nextByte = _memory[pcValue];
-                //        _instructionRegister = nextByte;
-                //        Decode();
-                //    }
-                //}
+                if (_interrupts.AreEnabled())
+                {
+                    // Enter low-power mode until an interrupt occurs
+                    while (true)
+                    {
+                        byte result = (byte)(_interrupts.IE & _interrupts.IF);
+                        if (result != 0)
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    byte result = (byte)(_interrupts.IE & _interrupts.IF);
+                    if (result == 0)
+                    {
+                        // No interrupt pending, wait for one to become pending
+                        while (true)
+                        {
+                            result = (byte)(_interrupts.IE & _interrupts.IF);
+                            if (result != 0)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Interrupt pending, continue execution but read the next byte twice
+                        ushort pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
+                        byte nextByte = _memory[pcValue];
+                        _instructionRegister = nextByte;
+                        Decode();
+                    }
+                }
             });
 
             switch (opcode)

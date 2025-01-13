@@ -3,7 +3,6 @@ GameBoyEmu/bin/*
 GameBoyEmu/obj/*
 .vs/*
 gb-test-roms/
-ConsoleAppTESTS/tests/*
 ConsoleAppTESTS/bin/*
 ConsoleAppTESTS/obj/*
 
