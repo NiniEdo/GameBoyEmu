@@ -1,5 +1,6 @@
 ﻿using GameBoyEmu.Exceptions;
 using GameBoyEmu.CartridgeNamespace;
+using GameBoyEmu.TimersNamespace;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -26,11 +27,15 @@ namespace GameBoyEmu.MemoryNamespace
             }
             set
             {
-                
+
                 if (address > ROM_MAX_ADDRESS)
                 {
                     _logger.Info($"Wrote memory address 0x{address:X4} with value 0x{value:X2}");
                     _memoryMap[address] = value;
+                }
+                else if (address == Timers.DIV)
+                {
+                    _memoryMap[address] = 0x00;
                 }
                 else
                 {
