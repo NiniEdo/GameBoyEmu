@@ -1,0 +1,3 @@
+[submodule "GameBoyEmuTests"]
+	path = GameBoyEmuTests
+	url = https://github.com/NiniEdo/GameBoyEmuTests.git
