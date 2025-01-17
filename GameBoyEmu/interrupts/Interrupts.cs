@@ -14,7 +14,7 @@ namespace GameBoyEmu.InterruptNamespace
         private bool _imeFlag = false;
         protected bool _interruptFlag = false;
         protected ushort _PC = 0;
-        private Interrupts()
+        protected Interrupts()
         {
             _memory = null!;
         }
