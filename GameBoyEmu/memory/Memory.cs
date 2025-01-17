@@ -18,11 +18,12 @@ namespace GameBoyEmu.MemoryNamespace
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private byte[] _memoryMap = new byte[0x1_0000]; //2^16 addresses (65.536)
         Cartridge _cartridge = new Cartridge();
+        Timers _timers;
+
         public virtual byte this[ushort address]
         {
             get
             {
-                _logger.Debug($"Read memory address 0x{address:X4}");
                 return _memoryMap[address];
             }
             set
@@ -30,16 +31,16 @@ namespace GameBoyEmu.MemoryNamespace
 
                 if (address > ROM_MAX_ADDRESS)
                 {
-                    _logger.Info($"Wrote memory address 0x{address:X4} with value 0x{value:X2}");
                     _memoryMap[address] = value;
                 }
-                else if (address == Timers.DIV)
+                else if (address == Timers.DIV_ADDRESS)
                 {
-                    _memoryMap[address] = 0x00;
+                    _memoryMap[Timers.DIV_ADDRESS] = 0x00;
+                    _timers.ResetDiv();
                 }
                 else
                 {
-                    _logger.Info($"[Trying] to write memory address 0x{address:X4} with value 0x{value:X2}");
+                    _logger.Error($"[Trying] to write memory address 0x{address:X4} with value 0x{value:X2}");
                 }
             }
         }
@@ -48,6 +49,7 @@ namespace GameBoyEmu.MemoryNamespace
 
         protected Memory(bool skipInitialization)
         {
+            _timers = null!;
         }
 
         public Memory()
@@ -68,6 +70,8 @@ namespace GameBoyEmu.MemoryNamespace
             {
                 throw;
             }
+
+            _timers = Timers.GetInstance();
         }
 
 
