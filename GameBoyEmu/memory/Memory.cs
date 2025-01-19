@@ -24,23 +24,54 @@ namespace GameBoyEmu.MemoryNamespace
         {
             get
             {
+                switch (address)
+                {
+                    case Timers.DIV_ADDRESS:
+                        _memoryMap[address] = _timers.Div;
+                        break;
+                    case Timers.TIMA_ADDRESS:
+                        _memoryMap[address] = _timers.Tima;
+                        break;
+                    case Timers.TMA_ADDRESS:
+                        _memoryMap[address] = _timers.Tma;
+                        break;
+                    case Timers.TAC_ADDRESS:
+                        _memoryMap[address] = _timers.Tac;
+                        break;
+                    default:
+                        break;
+                }
+
                 return _memoryMap[address];
             }
             set
             {
+                switch (address)
+                {
+                    case Timers.DIV_ADDRESS:
+                        _timers.Div = value;
+                        break;
+                    case Timers.TIMA_ADDRESS:
+                        _timers.Tima = value;
+                        break;
+                    case Timers.TMA_ADDRESS:
+                        _timers.Tma = value;
+                        break;
+                    case Timers.TAC_ADDRESS:
+                        _timers.Tac = value;
+                        break;
 
-                if (address > ROM_MAX_ADDRESS)
-                {
-                    _memoryMap[address] = value;
-                }
-                else if (address == Timers.DIV_ADDRESS)
-                {
-                    _memoryMap[Timers.DIV_ADDRESS] = 0x00;
-                    _timers.ResetDiv();
-                }
-                else
-                {
-                    _logger.Error($"[Trying] to write memory address 0x{address:X4} with value 0x{value:X2}");
+                    default:
+                        if (address > ROM_MAX_ADDRESS)
+                        {
+                            _memoryMap[address] = value;
+                        }
+                        else
+                        {
+                            //rom writes attempts are possible but must be ignored
+                            _logger.Debug($"[Trying] to write memory address 0x{address:X4} with value 0x{value:X2}");
+                        }
+                        break;
                 }
             }
         }

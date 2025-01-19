@@ -17,17 +17,25 @@ namespace GameBoyEmu.TimersNamespace
         private static Memory? _memory;
 
         public const ushort DIV_ADDRESS = 0xFF04;
-        private const ushort TIMA_ADDRESS = 0xFF05;
-        private const ushort TMA_ADDRESS = 0xFF06;
-        private const ushort TAC_ADDRES = 0xFF07;
+        public const ushort TIMA_ADDRESS = 0xFF05;
+        public const ushort TMA_ADDRESS = 0xFF06;
+        public const ushort TAC_ADDRESS = 0xFF07;
 
         private ushort _timaTickCounter = 0;
 
-        private ushort _divCounter = 0;
-        private byte _div;
+        private ushort _div = 0;
         private byte _tima;
         private byte _tma;
         private byte _tac;
+
+        public byte Div
+        {
+            get => (byte)(_div >> 8);
+            set => _div = 0x00;
+        }
+        public byte Tima { get => _tima; set => _tima = value; }
+        public byte Tma { get => _tma; set => _tma = value; }
+        public byte Tac { get => _tac; set => _tac = value; }
 
         private Timers()
         {
@@ -47,12 +55,6 @@ namespace GameBoyEmu.TimersNamespace
             _memory = mem;
         }
 
-        public byte Div
-        {
-            get => (byte)(_divCounter >> 8);
-            set => _divCounter = 0x00;
-        }
-
         private Dictionary<byte, int> _selectClockFrequency = new Dictionary<byte, int>()
         {
             {00, 256},
@@ -61,38 +63,30 @@ namespace GameBoyEmu.TimersNamespace
             {11, 64}
         };
 
-        
-
         public void Tick(ushort mCycleCount)
         {
-            //_divCounter += 4;
+            _div += 4;
 
-            //byte tac = _memory[TAC_ADDRES];
-            //if (((tac >> 2) & 0b0000_0001) == 1)
-            //{
-            //    ushort timaValue = _memory[TIMA_ADDRESS];
-            //    _timaTickCounter += mCycleCount;
-            //    int timaFrequency = _selectClockFrequency[(byte)(tac & 0b0000_0011)];
+            if (((_tac >> 2) & 0b0000_0001) == 1)
+            {
+                _timaTickCounter += mCycleCount;
+                ushort timaValue = _tima;
+                int timaFrequency = _selectClockFrequency[(byte)(_tac & 0b0000_0011)];
 
-            //    if (_timaTickCounter >= timaFrequency)
-            //    {
-            //        _memory[TIMA_ADDRESS] += 1;
-            //        timaValue += 1;
-            //        _timaTickCounter = (ushort)(_timaTickCounter % timaFrequency);
-            //    }
+                if (_timaTickCounter >= timaFrequency)
+                {
+                    _tima += 1;
+                    timaValue += 1;
+                    _timaTickCounter = (ushort)(_timaTickCounter % timaFrequency);
+                }
 
-            //    if (timaValue > 0xFF) // check tima overflow
-            //    {
-            //        _memory[TIMA_ADDRESS] = _memory[TMA_ADDRESS];
-            //        _interruptsManager.RequestTimerInterrupt();
-            //    }
-            //}
+                if (timaValue > 0xFF) // check tima overflow
+                {
+                    _tima = _tma;
+                    _interrupts.RequestTimerInterrupt();
+                }
+            }
 
-        }
-
-        public void ResetDiv()
-        {
-            _divCounter = 0;
         }
     }
 }
