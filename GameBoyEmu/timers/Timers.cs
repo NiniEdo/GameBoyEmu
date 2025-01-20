@@ -21,12 +21,14 @@ namespace GameBoyEmu.TimersNamespace
         public const ushort TMA_ADDRESS = 0xFF06;
         public const ushort TAC_ADDRESS = 0xFF07;
 
-        private ushort _timaTickCounter = 0;
-
         private ushort _div = 0;
         private byte _tima;
         private byte _tma;
         private byte _tac;
+
+
+        private byte timerEnable = 0;
+        private byte previousAndResult = 0;
 
         public byte Div
         {
@@ -55,38 +57,43 @@ namespace GameBoyEmu.TimersNamespace
             _memory = mem;
         }
 
-        private Dictionary<byte, int> _selectClockFrequency = new Dictionary<byte, int>()
-        {
-            {00, 256},
-            {01, 4},
-            {10, 16},
-            {11, 64}
-        };
-
         public void Tick(ushort mCycleCount)
         {
-            _div += 4;
+            byte tCycles = (byte)(4 * mCycleCount);
 
-            if (((_tac >> 2) & 0b0000_0001) == 1)
+            _div += tCycles;
+
+            for (int i = 0; i < tCycles; i++)
             {
-                _timaTickCounter += mCycleCount;
-                ushort timaValue = _tima;
-                int timaFrequency = _selectClockFrequency[(byte)(_tac & 0b0000_0011)];
-
-                if (_timaTickCounter >= timaFrequency)
-                {
-                    _tima += 1;
-                    timaValue += 1;
-                    _timaTickCounter = (ushort)(_timaTickCounter % timaFrequency);
-                }
-
-                if (timaValue > 0xFF) // check tima overflow
-                {
-                    _tima = _tma;
-                    _interrupts.RequestTimerInterrupt();
-                }
+                DetectFallingEdge();
             }
+        }
 
+        private void DetectFallingEdge()
+        {
+            timerEnable = (byte)((_tac & 0b0000_0100) >> 2);
+
+            byte andResult = (byte)(timerEnable & GetDivBit()); 
+            if (previousAndResult == 1 && andResult == 0)
+            {
+                _tima += 1;
+            }
+            previousAndResult = andResult;
+        }
+
+        private byte GetDivBit()
+        {
+            byte clockSelect = (byte)(_tac & 0b0000_0011);
+            byte bitPosition = clockSelect switch
+            {
+                0b00 => 9,
+                0b01 => 3,
+                0b10 => 5,
+                0b11 => 7,
+                _ => 9
+            };
+            byte divBit = (byte)((_div >> bitPosition) & 0b0000_0001);
+            return divBit;
         }
     }
 }

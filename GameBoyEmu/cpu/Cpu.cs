@@ -319,7 +319,7 @@ namespace GameBoyEmu.CpuNamespace
                     return new Instruction("stop", 0, () =>
                     {
                         _logger.Debug($"Instruction Fetched: {"stop"}");
-                        _timers.ResetDiv();
+                        _memory[Timers.DIV_ADDRESS] = 0x00;
                         while (true)
                         {
                             byte result = (byte)(_interruptsManager.IE & _interruptsManager.IF);

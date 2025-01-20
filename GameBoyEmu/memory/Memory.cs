@@ -60,7 +60,6 @@ namespace GameBoyEmu.MemoryNamespace
                     case Timers.TAC_ADDRESS:
                         _timers.Tac = value;
                         break;
-
                     default:
                         if (address > ROM_MAX_ADDRESS)
                         {
