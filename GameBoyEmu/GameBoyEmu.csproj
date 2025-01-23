@@ -19,4 +19,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="GameBoyEmuTests" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="ppu\" />
+  </ItemGroup>
 </Project>

@@ -14,6 +14,9 @@ namespace GameBoyEmu.InterruptNamespace
         private bool _imeFlag = false;
         protected bool _interruptFlag = false;
         protected ushort _PC = 0;
+        public const ushort IE_ADDRESS = 0xFFFF;
+        public const ushort IF_ADDRESS = 0xFFF0;
+
         protected Interrupts()
         {
             _memory = null!;
@@ -35,12 +38,12 @@ namespace GameBoyEmu.InterruptNamespace
 
         public virtual byte IE
         {
-            get => _memory != null ? _memory[0xFFFF] : throw new InvalidOperationException("Memory is not set.");
+            get => _memory != null ? _memory[IE_ADDRESS] : throw new InvalidOperationException("Memory is not set.");
             set
             {
                 if (_memory != null)
                 {
-                    _memory[0xFFFF] = value;
+                    _memory[IE_ADDRESS] = value;
                 }
                 else
                 {
@@ -50,12 +53,12 @@ namespace GameBoyEmu.InterruptNamespace
         }
         public virtual byte IF
         {
-            get => _memory != null ? _memory[0xFF0F] : throw new InvalidOperationException("Memory is not set.");
+            get => _memory != null ? _memory[IF_ADDRESS] : throw new InvalidOperationException("Memory is not set.");
             set
             {
                 if (_memory != null)
                 {
-                    _memory[0xFF0F] = value;
+                    _memory[IF_ADDRESS] = value;
                 }
                 else
                 {

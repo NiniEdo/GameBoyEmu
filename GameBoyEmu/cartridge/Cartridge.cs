@@ -14,8 +14,8 @@ namespace GameBoyEmu.CartridgeNamespace
     internal class Cartridge
     {
         private Logger _logger = LogManager.GetCurrentClassLogger();
-        private byte[]? romDump;
-        private readonly Dictionary<string, string> newLicenseeCodes = new Dictionary<string, string>
+        private byte[]? _romDump;
+        private readonly Dictionary<string, string> _newLicenseeCodes = new Dictionary<string, string>
         {
             { "00", "None" },
             { "01", "Nintendo Research & Development 1" },
@@ -82,7 +82,7 @@ namespace GameBoyEmu.CartridgeNamespace
             { "BL", "MTO" },
             { "DK", "Kodansha" }
         };
-        private readonly Dictionary<string, string> oldLicenseeCodes = new Dictionary<string, string>
+        private readonly Dictionary<string, string> _oldLicenseeCodes = new Dictionary<string, string>
         {
             { "00", "None" },
             { "01", "Nintendo" },
@@ -249,7 +249,7 @@ namespace GameBoyEmu.CartridgeNamespace
 
             try
             {
-                romDump = File.ReadAllBytes(bgFile);
+                _romDump = File.ReadAllBytes(bgFile);
                 _logger.Info($"Loaded cartridge: {bgFile.Replace("..\\..\\..\\", "")}");
             }
             catch (IOException IOex)
@@ -259,13 +259,20 @@ namespace GameBoyEmu.CartridgeNamespace
 
             ReadHeaderData();
 
-            return romDump;
+            return _romDump;
         }
         private void ReadHeaderData()
         {
+            if (_romDump == null || _romDump.Length < 0x144)
+            {
+                throw new CartridgeException("ROM data is incomplete or corrupted");
+            }
+
             CheckOriginalCartridge();
             ReadMetadata();
-            ReadCartridgeHardware();
+            HeaderChecksum();
+            ReadCartridgeMBC();
+            //global checksum skipped because not mandatory
         }
 
         private void CheckOriginalCartridge()
@@ -276,7 +283,7 @@ namespace GameBoyEmu.CartridgeNamespace
                 0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
             };
 
-            byte[] logoDump = romDump![0x104..0x134];
+            byte[] logoDump = _romDump![0x104..0x134];
 
             bool isOriginal = logo.SequenceEqual(logoDump);
 
@@ -292,13 +299,8 @@ namespace GameBoyEmu.CartridgeNamespace
 
         private void ReadMetadata()
         {
-            if (romDump == null || romDump.Length < 0x144)
-            {
-                throw new CartridgeException("ROM data is incomplete or corrupted");
-            }
-
             //0134-0143 — Title or 013F-0142 — Manufacturer code
-            byte[] romMetadata = romDump[0x134..0x144];
+            byte[] romMetadata = _romDump![0x134..0x144];
 
             if (romMetadata[romMetadata.Length - 1] == 0xC0)
             {
@@ -307,10 +309,10 @@ namespace GameBoyEmu.CartridgeNamespace
 
             if (romMetadata[romMetadata.Length - 1] == 0x80) // new metadata informations format
             {
-                byte[] titleDump = romDump[0x134..0x13F];
+                byte[] titleDump = _romDump[0x134..0x13F];
                 string title = Encoding.ASCII.GetString(titleDump);
 
-                byte[] manifacturerCodeDump = romDump[0x13F..0x143];
+                byte[] manifacturerCodeDump = _romDump[0x13F..0x143];
                 string manifacturer = Encoding.ASCII.GetString(manifacturerCodeDump);
 
                 _logger.Info($"Title: {title}, Manifacturer: {manifacturer}");
@@ -326,34 +328,56 @@ namespace GameBoyEmu.CartridgeNamespace
             _logger.Info($"CBG flag set to: ${romMetadata[romMetadata.Length - 1].ToString("X2")}");
 
             //0144–0145 — New licensee code or 014B — Old licensee code
-            byte licenseCode = romDump[0x14B];
+            byte licenseCode = _romDump[0x14B];
             if (licenseCode == 0x33)
             {
-                byte[] newlicenseCode = romDump[0x144..0x146];
+                byte[] newlicenseCode = _romDump[0x144..0x146];
                 string license = Encoding.ASCII.GetString(newlicenseCode);
-                _logger.Info($"Licensee: {newLicenseeCodes[license]}");
+                _logger.Info($"Licensee: {_newLicenseeCodes[license]}");
 
             }
             else
             {
                 string license = licenseCode.ToString("X2");
-                _logger.Info($"Licensee: {oldLicenseeCodes[license]}");
+                _logger.Info($"Licensee: {_oldLicenseeCodes[license]}");
             }
 
 
             //0146 — SGB flag
-            string sbgFlag = romDump[0x146] == 0x00 ? "not compatible" : romDump[0x146] == 0x03 ? "compatible" : "invalid code";
+            string sbgFlag = _romDump[0x146] == 0x00 ? "not compatible" : _romDump[0x146] == 0x03 ? "compatible" : "invalid code";
 
             _logger.Info($"SBG flag set to: {sbgFlag}");
 
-            string destination = romDump[0x014A] == 0x00 ? "Japan (and possibly overseas)" : romDump[0x014A] == 0x01 ? "Overseas only" : "Invalid Destination Code";
+            string destination = _romDump[0x014A] == 0x00 ? "Japan (and possibly overseas)" : _romDump[0x014A] == 0x01 ? "Overseas only" : "Invalid Destination Code";
             _logger.Info($"Destination: {destination}");
+
+            byte gameVersion = _romDump[0x014C];
+            _logger.Info($"Game Version: {gameVersion}");
+
+        }
+        private void HeaderChecksum()
+        {
+            byte checksum = 0;
+
+            for (ushort address = 0x0134; address < 0x014D; address++)
+            {
+                checksum = (byte)(checksum - _romDump![address] - 1);
+            }
+
+            if ((byte)(checksum & 0xFF) != _romDump![0x014D])
+            {
+                _logger.Warn("Checksum failed");
+            }
+            else
+            {
+                _logger.Info("Checksum OK");
+            }
         }
 
-        private void ReadCartridgeHardware()
+        private void ReadCartridgeMBC()
         {
             //TODO ReadCartridgeHardware
         }
-        //TODO checksum
+
     }
 }

@@ -11,7 +11,6 @@ namespace GameBoyEmu.TimersNamespace
 {
     public class Timers
     {
-        //TODO: Timer obscure behavour
         private Interrupts _interrupts;
         private static Timers? _instance;
         private static Memory? _memory;
@@ -26,15 +25,16 @@ namespace GameBoyEmu.TimersNamespace
         private byte _tma;
         private byte _tac;
 
-
         private byte timerEnable = 0;
         private byte previousAndResult = 0;
-
+        private bool _isTimaReloaded = false;
+        private int _tCycleCount = 0;
         public byte Div
         {
             get => (byte)(_div >> 8);
             set => _div = 0x00;
         }
+
         public byte Tima { get => _tima; set => _tima = value; }
         public byte Tma { get => _tma; set => _tma = value; }
         public byte Tac { get => _tac; set => _tac = value; }
@@ -73,12 +73,47 @@ namespace GameBoyEmu.TimersNamespace
         {
             timerEnable = (byte)((_tac & 0b0000_0100) >> 2);
 
-            byte andResult = (byte)(timerEnable & GetDivBit()); 
-            if (previousAndResult == 1 && andResult == 0)
+            byte andResult = (byte)(timerEnable & GetDivBit());
+            if (_isTimaReloaded)
             {
-                _tima += 1;
+                HandleTimaReload();
+            }
+            else
+            {
+                if (previousAndResult == 1 && andResult == 0)
+                {
+                    if (_tima == 0xFF)
+                    {
+                        _isTimaReloaded = true;
+                        _tima = 0x00;
+                    }
+                    else
+                    {
+                        _tima += 1;
+                    }
+                }
             }
             previousAndResult = andResult;
+        }
+
+        /*TODO: check if this causes problems:
+         * If TIMA is written to on the same T-cycle on which the reload from TMA occurs the write is ignored 
+         * and the value in TMA will be loaded into TIMA. However, if TMA is written to on the same T-cycle on which the reload occurs, 
+         * TMA is updated before its value is loaded into TIMA, meaning the reload will be carried out with the new value.
+         */
+        private void HandleTimaReload() 
+        {
+            _tCycleCount += 1;
+            if (_tCycleCount == 4)
+            {
+                if (_tima != 0x00)
+                {
+                    _tima = _tma;
+                    _isTimaReloaded = false;
+                    _tCycleCount = 0;
+                    _interrupts.RequestTimerInterrupt();
+                }
+            }
         }
 
         private byte GetDivBit()
