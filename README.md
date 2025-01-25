@@ -1,4 +1,4 @@
-# (WIP) A C# GB emulator
+# (WIP) A C# GameBoy emulator
 
 My first emulator, written just for fun.
 
