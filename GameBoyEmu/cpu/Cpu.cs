@@ -15,6 +15,8 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Win32;
 using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.TimersNamespace;
+using System.Reflection.PortableExecutable;
+using GameBoyEmu.MachineCyclesNamespace;
 
 
 namespace GameBoyEmu.CpuNamespace
@@ -42,8 +44,8 @@ namespace GameBoyEmu.CpuNamespace
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private Memory _memory;
         private FlagsHelper _flags;
-        private InterruptNamespace.Interrupts _interruptsManager;
-        private Timers _timers;
+        private Interrupts _interruptsManager;
+        private MachineCycles _machineCycles;
 
         //16 bits
         private byte[] _AF = new byte[2] { 0x80, 0x01 };
@@ -55,7 +57,7 @@ namespace GameBoyEmu.CpuNamespace
 
         private byte _instructionRegister = 0x00;
 
-        private ushort _incrementMCycles = 0;
+        private ushort _mCycleCounter = 0;
         private bool keepRunning = true;
 
         private readonly Dictionary<paramsType, List<byte[]>> _16bitsRegistries;
@@ -74,7 +76,7 @@ namespace GameBoyEmu.CpuNamespace
         {
             _flags = new FlagsHelper(ref _AF);
             _interruptsManager = Interrupts.GetInstance();
-            _timers = Timers.GetInstance();
+            _machineCycles = MachineCycles.GetInstance();
             _memory = memory;
             _16bitsRegistries = new()
             {
@@ -539,7 +541,7 @@ namespace GameBoyEmu.CpuNamespace
                                 newValue++;
                                 _memory[value] = newValue;
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                             }
                             else
                             {
@@ -573,7 +575,7 @@ namespace GameBoyEmu.CpuNamespace
                                 newValue--;
                                 _memory[value] = newValue;
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                             }
                             else
                             {
@@ -606,7 +608,7 @@ namespace GameBoyEmu.CpuNamespace
 
                                 _memory[value] = imm8;
 
-                                _incrementMCycles += 1;
+                                _mCycleCounter += 1;
                             }
                             else
                             {
@@ -634,7 +636,7 @@ namespace GameBoyEmu.CpuNamespace
                             _PC[0] = (byte)(newPcValue & 0xFF);
                             _PC[1] = (byte)(newPcValue >> 8);
 
-                            _incrementMCycles += 1;
+                            _mCycleCounter += 1;
                         }
                         else
                         {
@@ -684,7 +686,7 @@ namespace GameBoyEmu.CpuNamespace
                         ushort pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
                         byte nextByte = _memory[pcValue];
                         _instructionRegister = nextByte;
-                        Decode();
+                        DecodeAndExecute();
                     }
                 }
             });
@@ -715,14 +717,14 @@ namespace GameBoyEmu.CpuNamespace
                                     ushort hlAddress = (ushort)((_HL[1] << 8) | _HL[0]);
                                     _memory[hlAddress] = registries[registerCodeSource]!.Value;
 
-                                    _incrementMCycles += 1;
+                                    _mCycleCounter += 1;
                                 }
                                 else if (registerCodeSource == 0b110)
                                 {
                                     ushort hlAddress = (ushort)((_HL[1] << 8) | _HL[0]);
                                     registries[registerCodeDestination]!.Value = _memory[hlAddress];
 
-                                    _incrementMCycles += 1;
+                                    _mCycleCounter += 1;
                                 }
                                 else
                                 {
@@ -757,7 +759,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 valueToAdd = _memory[pointerValue];
 
-                                _incrementMCycles += 1;
+                                _mCycleCounter += 1;
                             }
                             else
                             {
@@ -795,7 +797,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 valueToAdd = (byte)(_memory[pointerValue]);
 
-                                _incrementMCycles += 1;
+                                _mCycleCounter += 1;
                             }
                             else
                             {
@@ -830,7 +832,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = _memory[pointerValue];
 
-                                _incrementMCycles += 1;
+                                _mCycleCounter += 1;
                             }
                             else
                             {
@@ -868,7 +870,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = (byte)(_memory[pointerValue]);
 
-                                _incrementMCycles += 1;
+                                _mCycleCounter += 1;
                             }
                             else
                             {
@@ -905,7 +907,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = (byte)(_memory[pointerValue]);
 
-                                _incrementMCycles += 1;
+                                _mCycleCounter += 1;
                             }
                             else
                             {
@@ -940,7 +942,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = (byte)(_memory[pointerValue]);
 
-                                _incrementMCycles += 1;
+                                _mCycleCounter += 1;
                             }
                             else
                             {
@@ -975,7 +977,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = (byte)(_memory[pointerValue]);
 
-                                _incrementMCycles += 1;
+                                _mCycleCounter += 1;
                             }
                             else
                             {
@@ -1010,7 +1012,7 @@ namespace GameBoyEmu.CpuNamespace
                                 ushort pointerValue = (ushort)((_HL[1] << 8) | _HL[0]);
                                 operand = _memory[pointerValue];
 
-                                _incrementMCycles += 1;
+                                _mCycleCounter += 1;
                             }
                             else
                             {
@@ -1221,7 +1223,7 @@ namespace GameBoyEmu.CpuNamespace
                         _PC[0] = lowByte;
                         _PC[1] = highByte;
 
-                        _incrementMCycles += 3;
+                        _mCycleCounter += 3;
                         _logger.Debug($"Instruction Fetched: {"call n16"} with params: {lowByte}, {highByte}");
                     });
                 case 0b1100_1011:
@@ -1359,7 +1361,7 @@ namespace GameBoyEmu.CpuNamespace
                             _PC[0] = lowByte;
                             _PC[1] = highByte;
 
-                            _incrementMCycles += 3;
+                            _mCycleCounter += 3;
                         }
                         _logger.Debug($"Instruction Fetched: {"ret cond"} with condition {conditionCode}");
                     });
@@ -1376,7 +1378,7 @@ namespace GameBoyEmu.CpuNamespace
                             _PC[0] = lowByte;
                             _PC[1] = highByte;
 
-                            _incrementMCycles += 1;
+                            _mCycleCounter += 1;
                         }
                         _logger.Debug($"Instruction Fetched: {"jp cond, n16"} with params: {lowByte}, {highByte} and condition {conditionCode}");
                     });
@@ -1395,7 +1397,7 @@ namespace GameBoyEmu.CpuNamespace
                             _PC[0] = lowByte;
                             _PC[1] = highByte;
 
-                            _incrementMCycles += 3;
+                            _mCycleCounter += 3;
                         }
                         _logger.Debug($"Instruction Fetched: {"call cc, n16"} with params: {lowByte}, {highByte} and condition {conditionCode}");
                     });
@@ -1490,7 +1492,7 @@ namespace GameBoyEmu.CpuNamespace
                                 carryOut = (byte)((_memory[memoryPointer] & 0b1000_0000) >> 7);
                                 _memory[memoryPointer] = (byte)((_memory[memoryPointer] << 1) | carryOut);
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                                 _flags.SetZeroFlagZ(_memory[memoryPointer]);
                             }
                             else
@@ -1532,7 +1534,7 @@ namespace GameBoyEmu.CpuNamespace
                                 carryOut = (byte)((_memory[memoryPointer] & 0b0000_0001));
                                 _memory[memoryPointer] = (byte)((_memory[memoryPointer] >> 1) | carryOut << 7);
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                                 _flags.SetZeroFlagZ(_memory[memoryPointer]);
                             }
                             else
@@ -1575,7 +1577,7 @@ namespace GameBoyEmu.CpuNamespace
 
                                 _memory[memoryPointer] = (byte)((_memory[memoryPointer] << 1) | _flags.GetCarryFlagC());
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                                 _flags.SetZeroFlagZ(_memory[memoryPointer]);
                             }
                             else
@@ -1617,7 +1619,7 @@ namespace GameBoyEmu.CpuNamespace
                                 carryOut = (byte)(_memory[memoryPointer] & 0b0000_0001);
                                 _memory[memoryPointer] = (byte)((_memory[memoryPointer] >> 1) | (_flags.GetCarryFlagC() << 7));
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                                 _flags.SetZeroFlagZ(_memory[memoryPointer]);
                             }
                             else
@@ -1658,7 +1660,7 @@ namespace GameBoyEmu.CpuNamespace
                                 carryOut = (byte)((_memory[memoryPointer] & 0b1000_0000) >> 7);
                                 _memory[memoryPointer] = (byte)(_memory[memoryPointer] << 1);
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                                 _flags.SetZeroFlagZ(_memory[memoryPointer]);
                             }
                             else
@@ -1700,7 +1702,7 @@ namespace GameBoyEmu.CpuNamespace
                                 carryOut = (byte)(originalValue & 0b0000_0001);
                                 _memory[memoryPointer] = (byte)((originalValue >> 1) | (originalValue & 0b1000_0000));
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                                 _flags.SetZeroFlagZ(_memory[memoryPointer]);
                             }
                             else
@@ -1745,7 +1747,7 @@ namespace GameBoyEmu.CpuNamespace
                                 newValue = (byte)(firstFour | lastFour);
                                 _memory[memoryPointer] = newValue;
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                             }
                             else
                             {
@@ -1787,7 +1789,7 @@ namespace GameBoyEmu.CpuNamespace
                                 carryOut = (byte)(_memory[memoryPointer] & 0b0000_0001);
                                 _memory[memoryPointer] = (byte)(_memory[memoryPointer] >> 1);
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                                 _flags.SetZeroFlagZ(_memory[memoryPointer]);
                             }
                             else
@@ -1899,7 +1901,7 @@ namespace GameBoyEmu.CpuNamespace
 
                                 _memory[memoryPointer] |= (byte)(1 << bitIndex);
 
-                                _incrementMCycles += 2;
+                                _mCycleCounter += 2;
                             }
                             else
                             {
@@ -1961,7 +1963,7 @@ namespace GameBoyEmu.CpuNamespace
             return nextByte;
         }
 
-        public void Decode()
+        public void DecodeAndExecute()
         {
             Instruction? instruction;
             try
@@ -2000,9 +2002,9 @@ namespace GameBoyEmu.CpuNamespace
                 if (instruction != null)
                 {
                     instruction?.Execute();
-                    _incrementMCycles += instruction?.Cycles ?? 0;
-                    _timers.Tick(_incrementMCycles);
-                    _incrementMCycles = 0;
+                    _mCycleCounter += instruction?.Cycles ?? 0;
+                    _machineCycles.Tick(_mCycleCounter);
+                    _mCycleCounter = 0;
                 }
                 else
                 {
@@ -2016,86 +2018,79 @@ namespace GameBoyEmu.CpuNamespace
             }
         }
 
-        public void Execute()
+        public void Run()
         {
             ushort pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
-            while (true)
+            _interruptsManager.HandleEiIfNeeded(pcValue);
+
+            if (_interruptsManager.AreEnabled())
             {
-                _interruptsManager.HandleEiIfNeeded(pcValue);
+                byte result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
 
-                if (_interruptsManager.AreEnabled())
+                byte vBlank = (byte)(result & 0b0000_0001);
+                byte lcd = (byte)((result & 0b0000_0010) >> 1);
+                byte timer = (byte)((result & 0b0000_0100) >> 2);
+                byte serial = (byte)((result & 0b0000_1000) >> 3);
+                byte joypad = (byte)((result & 0b0000_1000) >> 4);
+
+                if (result != 0)
                 {
-                    byte result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
-
-                    byte vBlank = (byte)(result & 0b0000_0001);
-                    byte lcd = (byte)((result & 0b0000_0010) >> 1);
-                    byte timer = (byte)((result & 0b0000_0100) >> 2);
-                    byte serial = (byte)((result & 0b0000_1000) >> 3);
-                    byte joypad = (byte)((result & 0b0000_1000) >> 4);
-
-                    if (result != 0)
+                    if (vBlank == 1)
                     {
-                        if (vBlank == 1)
-                        {
-                            Push(highByte: _PC[1], lowByte: _PC[0]);
-                            _PC[0] = 0x40;
-                            _PC[1] = 0x00;
-                        }
-                        if (lcd == 1)
-                        {
-                            Push(highByte: _PC[1], lowByte: _PC[0]);
-                            _PC[0] = 0x48;
-                            _PC[1] = 0x00;
-                        }
-                        if (timer == 1)
-                        {
-                            Push(highByte: _PC[1], lowByte: _PC[0]);
-                            _PC[0] = 0x50;
-                            _PC[1] = 0x00;
-                        }
-                        if (serial == 1)
-                        {
-                            Push(highByte: _PC[1], lowByte: _PC[0]);
-                            _PC[0] = 0x58;
-                            _PC[1] = 0x00;
-                        }
-                        if (joypad == 1)
-                        {
-                            Push(highByte: _PC[1], lowByte: _PC[0]);
-                            _PC[0] = 0x60;
-                            _PC[1] = 0x00;
-                        }
-                        _incrementMCycles += 5;
+                        Push(highByte: _PC[1], lowByte: _PC[0]);
+                        _PC[0] = 0x40;
+                        _PC[1] = 0x00;
                     }
-
+                    if (lcd == 1)
+                    {
+                        Push(highByte: _PC[1], lowByte: _PC[0]);
+                        _PC[0] = 0x48;
+                        _PC[1] = 0x00;
+                    }
+                    if (timer == 1)
+                    {
+                        Push(highByte: _PC[1], lowByte: _PC[0]);
+                        _PC[0] = 0x50;
+                        _PC[1] = 0x00;
+                    }
+                    if (serial == 1)
+                    {
+                        Push(highByte: _PC[1], lowByte: _PC[0]);
+                        _PC[0] = 0x58;
+                        _PC[1] = 0x00;
+                    }
+                    if (joypad == 1)
+                    {
+                        Push(highByte: _PC[1], lowByte: _PC[0]);
+                        _PC[0] = 0x60;
+                        _PC[1] = 0x00;
+                    }
+                    _mCycleCounter += 5;
                 }
 
-                byte data = Fetch();
-                _instructionRegister = data;
-                try
-                {
-                    Decode();
-                }
-                catch (InstructionExcecutionException)
-                {
-                    break;
-                }
-                _logger.Debug($"PC: {pcValue}: Values after operation: {_instructionRegister} " +
-                    $"AF: {string.Join(",", _AF.Select(b => b.ToString()))}, " +
-                    $"BC: {string.Join(",", _BC.Select(b => b.ToString()))}, " +
-                    $"DE: {string.Join(",", _DE.Select(b => b.ToString()))}, " +
-                    $"HL: {string.Join(",", _HL.Select(b => b.ToString()))}, " +
-                    $"SP: {string.Join(",", _SP.Select(b => b.ToString()))}, " +
-                    $"PC: {string.Join(",", _PC.Select(b => b.ToString()))}, " +
-                    $"Cycles: {_incrementMCycles}");
-
-                pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
-
-                if (!keepRunning) // to run just the first instruction
-                {
-                    break;
-                }
             }
+
+            byte data = Fetch();
+            _instructionRegister = data;
+            try
+            {
+                DecodeAndExecute();
+            }
+            catch (InstructionExcecutionException)
+            {
+                return;
+            }
+            _logger.Debug($"PC: {pcValue}: Values after operation: {_instructionRegister} " +
+                $"AF: {string.Join(",", _AF.Select(b => b.ToString()))}, " +
+                $"BC: {string.Join(",", _BC.Select(b => b.ToString()))}, " +
+                $"DE: {string.Join(",", _DE.Select(b => b.ToString()))}, " +
+                $"HL: {string.Join(",", _HL.Select(b => b.ToString()))}, " +
+                $"SP: {string.Join(",", _SP.Select(b => b.ToString()))}, " +
+                $"PC: {string.Join(",", _PC.Select(b => b.ToString()))}, " +
+                $"Cycles: {_mCycleCounter}");
+
+            pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
         }
     }
 }
+

@@ -5,14 +5,17 @@ using System.Text;
 using System.Threading.Tasks;
 using GameBoyEmu.CpuNamespace;
 using GameBoyEmu.InterruptNamespace;
+using GameBoyEmu.MachineCyclesNamespace;
 using GameBoyEmu.MemoryNamespace;
 using GameBoyEmu.TimersNamespace;
-namespace GameBoyEmu
+namespace GameBoyEmu.gameboy
 {
     internal class GameBoy
     {
         Cpu _cpu;
         Memory _memory;
+        MachineCycles _machineCycles = MachineCycles.GetInstance();
+
         public GameBoy()
         {
             _memory = new Memory();
@@ -24,7 +27,12 @@ namespace GameBoyEmu
 
         public void Start()
         {
-            _cpu.Execute();
+            int elapsedCycles = 0;
+            while (elapsedCycles < 0)
+            {
+                _cpu.Run();
+                elapsedCycles += _machineCycles.LastInstructionCycles;
+            }
         }
     }
 }

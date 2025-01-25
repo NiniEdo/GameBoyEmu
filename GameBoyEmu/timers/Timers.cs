@@ -57,11 +57,11 @@ namespace GameBoyEmu.TimersNamespace
             _memory = mem;
         }
 
-        public void Tick(ushort mCycleCount)
+        public void Tick(int mCycleCount)
         {
-            byte tCycles = (byte)(4 * mCycleCount);
+            int tCycles = (4 * mCycleCount);
 
-            _div += tCycles;
+            _div += (ushort)tCycles;
 
             for (int i = 0; i < tCycles; i++)
             {
@@ -101,7 +101,7 @@ namespace GameBoyEmu.TimersNamespace
          * and the value in TMA will be loaded into TIMA. However, if TMA is written to on the same T-cycle on which the reload occurs, 
          * TMA is updated before its value is loaded into TIMA, meaning the reload will be carried out with the new value.
          */
-        private void HandleTimaReload() 
+        private void HandleTimaReload()
         {
             _tCycleCount += 1;
             if (_tCycleCount == 4)

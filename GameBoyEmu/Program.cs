@@ -1,8 +1,9 @@
 ﻿using GameBoyEmu.CartridgeNamespace;
-using GameBoyEmu;
 using GameBoyEmu.CpuNamespace;
 using System.Runtime.CompilerServices;
 using NLog;
+using SDL2;
+using GameBoyEmu.gameboy;
 
 namespace GameBoyEmu
 {
@@ -10,7 +11,6 @@ namespace GameBoyEmu
     {
         static void Main(string[] args)
         {
-
             Logger _logger = LogManager.GetCurrentClassLogger();
 
             GameBoy _gameboy;
@@ -23,7 +23,6 @@ namespace GameBoyEmu
             {
                 _logger.Error($"Emulation stopped: {ex.Message}");
             }
-
         }
     }
 }
