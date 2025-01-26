@@ -62,9 +62,14 @@ namespace GameBoyEmu.gameboy
 
         private void DelayNextFrame(long elapsedTime)
         {
+            if (elapsedTime > FRAME_TIME_MS)
+            {
+                return;
+            }
+
             long remainingTime = (long)FRAME_TIME_MS - elapsedTime;
 
-            while (remainingTime > 0)
+            if (remainingTime > 0)
             {
                 Thread.Sleep((int)remainingTime);
             }

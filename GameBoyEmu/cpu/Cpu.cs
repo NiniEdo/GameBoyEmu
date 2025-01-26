@@ -2080,14 +2080,6 @@ namespace GameBoyEmu.CpuNamespace
             {
                 return;
             }
-            _logger.Debug($"PC: {pcValue}: Values after operation: {_instructionRegister} " +
-                $"AF: {string.Join(",", _AF.Select(b => b.ToString()))}, " +
-                $"BC: {string.Join(",", _BC.Select(b => b.ToString()))}, " +
-                $"DE: {string.Join(",", _DE.Select(b => b.ToString()))}, " +
-                $"HL: {string.Join(",", _HL.Select(b => b.ToString()))}, " +
-                $"SP: {string.Join(",", _SP.Select(b => b.ToString()))}, " +
-                $"PC: {string.Join(",", _PC.Select(b => b.ToString()))}, " +
-                $"Cycles: {_mCycleCounter}");
 
             pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
         }
