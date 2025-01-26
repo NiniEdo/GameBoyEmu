@@ -39,7 +39,6 @@ namespace GameBoyEmu.MachineCyclesNamespace
         private void TickComponents()
         {
             _timers.Tick(lastInstructionCycles);
-            
         }
     }
 }
