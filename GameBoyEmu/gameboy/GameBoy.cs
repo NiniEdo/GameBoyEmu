@@ -1,30 +1,30 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
+using System.Threading;
+using NLog;
+using SDL2;
 using GameBoyEmu.CpuNamespace;
 using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.MachineCyclesNamespace;
 using GameBoyEmu.MemoryNamespace;
+using GameBoyEmu.PpuNamespace;
 using GameBoyEmu.TimersNamespace;
-using System.Diagnostics;
-using SDL2;
-using NLog.LayoutRenderers.Wrappers;
-using NLog;
+using GameBoyEmu.ScreenNameSpace;
 
 namespace GameBoyEmu.gameboy
 {
     internal class GameBoy
     {
-        private Logger _logger = LogManager.GetCurrentClassLogger();
-
         private const float FPS = 59.7F;
         private const int MCYCLES_PER_FRAME = (int)((4194304 / FPS) / 4);
         private const float FRAME_TIME_MS = (float)(1000 / FPS);
-        Cpu _cpu;
-        Memory _memory;
-        MachineCycles _machineCycles = MachineCycles.GetInstance();
+
+        private Cpu _cpu;
+        private Ppu _ppu;
+        private Memory _memory;
+        private MachineCycles _machineCycles = MachineCycles.GetInstance();
+        private Logger _logger = LogManager.GetCurrentClassLogger();
+        private Screen _screen = new Screen();
 
         public GameBoy()
         {
@@ -33,21 +33,32 @@ namespace GameBoyEmu.gameboy
             Timers.SetMemory(_memory);
 
             _cpu = new Cpu(_memory);
+            _ppu = new Ppu(_memory);
+
+            _machineCycles.SetPpu(_ppu);
+            _screen.InitScreen();
         }
 
         public void Start()
         {
-            long frameTimer = Stopwatch.Frequency;
             Stopwatch timer = new Stopwatch();
-            while (true)
+            bool running = true;
+
+            while (running)
             {
                 timer.Restart();
+
+                _screen.ListenForEvents(ref running);
                 RunFrame();
+                _screen.RenderScreen();
+
                 timer.Stop();
 
                 DelayNextFrame(timer.ElapsedMilliseconds);
                 _logger.Info($"Frame Time : {timer.ElapsedMilliseconds}ms");
             }
+
+            _screen.CloseScreen();
         }
 
         private void RunFrame()

@@ -1,4 +1,5 @@
 ﻿using GameBoyEmu.InterruptNamespace;
+using GameBoyEmu.PpuNamespace;
 using GameBoyEmu.TimersNamespace;
 using System;
 using System.Collections.Generic;
@@ -12,14 +13,17 @@ namespace GameBoyEmu.MachineCyclesNamespace
     {
         private static MachineCycles? _instance;
         private Timers _timers = Timers.GetInstance();
+        private Ppu? _ppu;
         private int lastInstructionCycles = 0;
 
         private MachineCycles()
-        {
-        }
+        { }
 
         public int LastInstructionCycles { get => lastInstructionCycles; }
-
+        public void SetPpu(Ppu ppu)
+        {
+            _ppu = ppu;
+        }
         public static MachineCycles GetInstance()
         {
             if (_instance == null)
@@ -39,6 +43,8 @@ namespace GameBoyEmu.MachineCyclesNamespace
         private void TickComponents()
         {
             _timers.Tick(lastInstructionCycles);
+            _ppu!.Tick(lastInstructionCycles);
         }
     }
 }
+    
