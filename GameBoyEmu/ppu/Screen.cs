@@ -14,6 +14,9 @@ namespace GameBoyEmu.ScreenNameSpace
 
         private IntPtr _window;
         private IntPtr _renderer;
+        private const int SCREEN_MULTIPLIER = 4;
+        private const int SCREEN_WIDTH = 160 * SCREEN_MULTIPLIER;
+        private const int SCREEN_HEIGHT = 160 * SCREEN_MULTIPLIER;
 
         public Screen()
         { }
@@ -30,8 +33,8 @@ namespace GameBoyEmu.ScreenNameSpace
                  "GameBoyEmu By Edoardo Nini",
                  SDL.SDL_WINDOWPOS_CENTERED,
                  SDL.SDL_WINDOWPOS_CENTERED,
-                 160 * 4,
-                 144 * 4,
+                 SCREEN_WIDTH,
+                 SCREEN_HEIGHT,
                  SDL.SDL_WindowFlags.SDL_WINDOW_SHOWN
             );
 
@@ -91,10 +94,10 @@ namespace GameBoyEmu.ScreenNameSpace
                 {
                     SDL.SDL_Rect rect = new SDL.SDL_Rect
                     {
-                        x = i * 8 * 4,
-                        y = j * 8 * 4,
-                        w = 8 * 4,
-                        h = 8 * 4
+                        x = i * 8 * SCREEN_MULTIPLIER,
+                        y = j * 8 * SCREEN_MULTIPLIER,
+                        w = 8 * SCREEN_MULTIPLIER,
+                        h = 8 * SCREEN_MULTIPLIER
                     };
                     rects.Add(rect);
                 }

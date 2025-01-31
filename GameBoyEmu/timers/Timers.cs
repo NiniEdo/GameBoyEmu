@@ -20,7 +20,7 @@ namespace GameBoyEmu.TimersNamespace
         public const ushort TMA_ADDRESS = 0xFF06;
         public const ushort TAC_ADDRESS = 0xFF07;
 
-        private ushort _div = 0;
+        private ushort _div;
         private byte _tima;
         private byte _tma;
         private byte _tac;
@@ -29,12 +29,7 @@ namespace GameBoyEmu.TimersNamespace
         private byte previousAndResult = 0;
         private bool _isTimaReloaded = false;
         private int _tCycleCount = 0;
-        public byte Div
-        {
-            get => (byte)(_div >> 8);
-            set => _div = 0x00;
-        }
-
+        public byte Div { get => (byte)(_div >> 8); set => _div = 0x00; }
         public byte Tima { get => _tima; set => _tima = value; }
         public byte Tma { get => _tma; set => _tma = value; }
         public byte Tac { get => _tac; set => _tac = value; }
