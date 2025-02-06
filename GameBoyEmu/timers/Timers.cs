@@ -13,7 +13,7 @@ namespace GameBoyEmu.TimersNamespace
     {
         private Interrupts _interrupts;
         private static Timers? _instance;
-        private static Memory? _memory;
+        private Memory? _memory;
 
         public const ushort DIV_ADDRESS = 0xFF04;
         public const ushort TIMA_ADDRESS = 0xFF05;
@@ -47,7 +47,7 @@ namespace GameBoyEmu.TimersNamespace
             }
             return _instance;
         }
-        public static void SetMemory(Memory mem)
+        public void SetMemory(Memory mem)
         {
             _memory = mem;
         }

@@ -29,13 +29,15 @@ namespace GameBoyEmu.gameboy
         public GameBoy()
         {
             _memory = new Memory();
-            Interrupts.SetMemory(_memory);
-            Timers.SetMemory(_memory);
+            Interrupts.GetInstance().SetMemory(_memory);
+            Timers.GetInstance().SetMemory(_memory);
 
             _cpu = new Cpu(_memory);
             _ppu = new Ppu(_memory);
 
+            _memory.SetPpu(_ppu);
             _machineCycles.SetPpu(_ppu);
+
             _screen.InitScreen();
         }
 

@@ -15,8 +15,10 @@ namespace GameBoyEmu.ScreenNameSpace
         private IntPtr _window;
         private IntPtr _renderer;
         private const int SCREEN_MULTIPLIER = 4;
-        private const int SCREEN_WIDTH = 160 * SCREEN_MULTIPLIER;
-        private const int SCREEN_HEIGHT = 160 * SCREEN_MULTIPLIER;
+        private const int SCREEN_WIDTH_PIXELS = 160;
+        private const int SCREEN_HEIGHT_PIXELS = 144;
+        private const int SCREEN_WIDTH = SCREEN_WIDTH_PIXELS * SCREEN_MULTIPLIER;
+        private const int SCREEN_HEIGHT = SCREEN_HEIGHT_PIXELS * SCREEN_MULTIPLIER;
 
         public Screen()
         { }
@@ -88,9 +90,9 @@ namespace GameBoyEmu.ScreenNameSpace
             SDL.SDL_SetRenderDrawColor(_renderer, 0, 255, 0, 255);
             List<SDL.SDL_Rect> rects = new List<SDL.SDL_Rect>();
 
-            for (int i = 0; i < 160; i++)
+            for (int i = 0; i < SCREEN_WIDTH_PIXELS; i++)
             {
-                for (int j = 0; j < 144; j++)
+                for (int j = 0; j < SCREEN_HEIGHT_PIXELS; j++)
                 {
                     SDL.SDL_Rect rect = new SDL.SDL_Rect
                     {

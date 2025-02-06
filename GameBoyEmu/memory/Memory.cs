@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using GameBoyEmu.PpuNamespace;
 
 namespace GameBoyEmu.MemoryNamespace
 {
@@ -15,10 +16,10 @@ namespace GameBoyEmu.MemoryNamespace
         public const int ROM_MAX_ADDRESS = 0x7FFF;
         public const int MEM_MAX_ADDRESS = 0xFFFF;
 
-        private Logger _logger = LogManager.GetCurrentClassLogger();
         private byte[] _memoryMap = new byte[0x1_0000]; //2^16 addresses (65.536)
-        Cartridge _cartridge = new Cartridge();
-        Timers _timers;
+        private Cartridge _cartridge = new Cartridge();
+        private Timers _timers;
+        private Ppu? _ppu;
 
         public virtual byte this[ushort address]
         {
@@ -61,14 +62,9 @@ namespace GameBoyEmu.MemoryNamespace
                         _timers.Tac = value;
                         break;
                     default:
-                        if (address > ROM_MAX_ADDRESS)
+                        if (address > ROM_MAX_ADDRESS) //rom writes attempts are possible but must be ignored
                         {
                             _memoryMap[address] = value;
-                        }
-                        else
-                        {
-                            //rom writes attempts are possible but must be ignored
-                            _logger.Debug($"[Trying] to write memory address 0x{address:X4} with value 0x{value:X2}");
                         }
                         break;
                 }
@@ -76,12 +72,6 @@ namespace GameBoyEmu.MemoryNamespace
         }
 
         private byte[] _romDump = Array.Empty<byte>();
-
-        protected Memory(bool skipInitialization)
-        {
-            _timers = null!;
-        }
-
         public Memory()
         {
             try
@@ -103,7 +93,10 @@ namespace GameBoyEmu.MemoryNamespace
 
             _timers = Timers.GetInstance();
         }
-
+        public void SetPpu(Ppu ppu)
+        {
+            _ppu = ppu;
+        }
 
         private void initializeRom()
         {
@@ -111,6 +104,18 @@ namespace GameBoyEmu.MemoryNamespace
             {
                 _memoryMap[i] = _romDump[i];
             }
+        }
+
+        //this methods are for the PPU to read directly to VRAM
+        public byte ReadVramDirectly(ushort address)
+        {
+            return _memoryMap[address];
+        }
+
+        //this methods are for the PPU to read directly to OAM
+        public byte ReadOamDirectly(ushort address)
+        {
+            return _memoryMap[address];
         }
     }
 }

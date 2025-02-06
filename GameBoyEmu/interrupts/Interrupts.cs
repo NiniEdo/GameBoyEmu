@@ -8,7 +8,7 @@ namespace GameBoyEmu.InterruptNamespace
 {
     public class Interrupts
     {
-        private static Memory? _memory;
+        private Memory? _memory;
         private static Interrupts? _instance;
 
         private bool _imeFlag = false;
@@ -31,7 +31,7 @@ namespace GameBoyEmu.InterruptNamespace
             return _instance;
         }
 
-        public static void SetMemory(Memory mem)
+        public void SetMemory(Memory mem)
         {
             _memory = mem;
         }
