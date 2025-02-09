@@ -1,4 +1,5 @@
-﻿using GameBoyEmu.MemoryNamespace;
+﻿using GameBoyEmu.InterruptNamespace;
+using GameBoyEmu.MemoryNamespace;
 using GameBoyEmu.TimersNamespace;
 using NLog;
 using NLog.LayoutRenderers;
@@ -15,8 +16,8 @@ namespace GameBoyEmu.PpuNamespace
     public class Ppu
     {
         private Memory _memory;
-        private Timers _timers = Timers.GetInstance();
         private Logger _logger = LogManager.GetCurrentClassLogger();
+        private Interrupts _interrupts = Interrupts.GetInstance();
 
         public const ushort LCDC_ADDRESS = 0xFF40;
         public const ushort STAT_ADDRESS = 0xFF41;
@@ -57,14 +58,21 @@ namespace GameBoyEmu.PpuNamespace
         public byte Wy { get => _wy; set => _wy = value; }
         public byte Wx { get => _wx; set => _wx = value; }
 
-        private byte LcdAndPpuEnable { get => (byte)((_lcdc & 0b1000_0000) >> 7); }
+        private bool LcdAndPpuEnable { get => (byte)((_lcdc & 0b1000_0000) >> 7) == 1; }
         private byte WindowTileMap { get => (byte)((_lcdc & 0b0100_0000) >> 6); }
-        private byte WindowEnable { get => (byte)((_lcdc & 0b0010_0000) >> 5); }
+        private bool WindowEnable { get => (byte)((_lcdc & 0b0010_0000) >> 5) == 1; }
         private byte BgAndWindowTileDataArea { get => (byte)((_lcdc & 0b0001_0000) >> 4); }
         private byte BgTileMapArea { get => (byte)((_lcdc & 0b0000_1000) >> 3); }
-        private byte ObjSize { get => (byte)((_lcdc & 0b0000_0100) >> 2); }
-        private byte ObjEnable { get => (byte)((_lcdc & 0b0000_0010) >> 1); }
-        private byte BgAndWindowEnable { get => (byte)((_lcdc & 0b0000_0001)); }
+        private byte SpriteSize { get => (byte)((_lcdc & 0b0000_0100) >> 2); }
+        private bool SpriteEnable { get => (byte)((_lcdc & 0b0000_0010) >> 1) == 1; }
+        private bool BgAndWindowEnable { get => (byte)((_lcdc & 0b0000_0001)) == 1; }
+
+        private bool LycEqualsLyInterruptEnable { get => (_stat & 0b0100_0000) == 0b0100_0000; }
+        private bool OamInterruptEnable { get => (_stat & 0b0010_0000) == 0b0010_0000; }
+        private bool VBlankInterruptEnable { get => (_stat & 0b0001_0000) == 0b0001_0000; }
+        private bool HBlankInterruptEnable { get => (_stat & 0b0000_1000) == 0b0000_1000; }
+        private bool CoincidenceFlag { set => _stat = (byte)((_stat & 0b1111_1011) | (value ? 0b0000_0100 : 0)); }
+        private byte PpuMode { set => _stat = (byte)((_stat & 0b1111_1100) | ((byte)value)); }
 
         struct Sprite
         {
@@ -76,7 +84,7 @@ namespace GameBoyEmu.PpuNamespace
             public byte Y { get => _y; set => _y = value; }
             public byte X { get => _x; set => _x = value; }
             public byte TileIndex { get => _tileIndex; set => _tileIndex = value; }
-            public byte Flags { set => _flags = value; }
+            public byte Flags { set => _flags = value; get => _flags; }
 
             public byte Priority { get => (byte)((_flags & 0b1000_0000) >> 7); }
             public byte YFlip { get => (byte)((_flags & 0b0100_0000) >> 6); }
@@ -93,6 +101,11 @@ namespace GameBoyEmu.PpuNamespace
 
         public void Tick(int mCycles)
         {
+            if (_ly == _lyc)
+            {
+                _interrupts.RequestStatInterrupt();
+            }
+
             for (int i = 0; i < mCycles; i++)
             {
                 _elapsedDots += 4;
@@ -113,15 +126,20 @@ namespace GameBoyEmu.PpuNamespace
 
         private void OamScan()
         {
+            PpuMode = 2;
             List<Sprite> sprites = new List<Sprite>();
             _currentAddress = 0xFE00;
 
             for (int i = 0; i < 40; i++)
             {
                 Sprite spriteAttributes = FetchObjectAttributes(_currentAddress);
-                int objectSize = ObjSize == 0 ? 1 : 16;
+
+                _logger.Debug($"Fetched Object: Y={spriteAttributes.Y}, X={spriteAttributes.X}, TileIndex={spriteAttributes.TileIndex}, Flags={spriteAttributes.Flags}");
+
+                int objectSize = SpriteSize == 0 ? 8 : 16;
                 bool isSpriteVisible = spriteAttributes.X > 0 && _ly + 16 >= spriteAttributes.Y && _ly + 16 < (spriteAttributes.Y + objectSize) && sprites.Count < 10;
-                if (isSpriteVisible)
+
+                if (isSpriteVisible && SpriteEnable)
                 {
                     sprites.Add(spriteAttributes);
                 }
@@ -132,12 +150,14 @@ namespace GameBoyEmu.PpuNamespace
 
         private void DrawPixels()
         {
-
+            PpuMode = 3;
         }
 
         private void HorizontalBlank()
         {
+            PpuMode = 0;
             _ly += 1;
+            _elapsedDots = 0;
         }
 
         private Sprite FetchObjectAttributes(ushort _currentAddress)

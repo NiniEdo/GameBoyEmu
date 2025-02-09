@@ -84,7 +84,7 @@ namespace GameBoyEmu.gameboy
 
             if (remainingTime > 0)
             {
-                Thread.Sleep((int)remainingTime);
+                Thread.SpinWait((int)remainingTime);
             }
         }
     }

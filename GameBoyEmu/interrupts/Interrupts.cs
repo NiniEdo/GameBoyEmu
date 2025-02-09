@@ -91,7 +91,12 @@ namespace GameBoyEmu.InterruptNamespace
 
         public void RequestTimerInterrupt()
         {
-            IE = (byte)((IE & 0b1111_1011) | (0b0000_0100));
+            IF = (byte)((IF & 0b1111_1011) | (0b0000_0100));
+        }
+
+        public void RequestStatInterrupt()
+        {
+            IF = (byte)((IF & 0b1111_1101) | (0b0000_0010));
         }
     }
 }
