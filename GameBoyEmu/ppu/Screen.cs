@@ -62,7 +62,7 @@ namespace GameBoyEmu.ScreenNameSpace
 
         }
 
-        public void ListenForEvents(ref bool running)
+        public static void ListenForEvents(ref bool isRunning)
         {
             SDL.SDL_Event e;
 
@@ -70,7 +70,7 @@ namespace GameBoyEmu.ScreenNameSpace
             {
                 if (e.type == SDL.SDL_EventType.SDL_QUIT)
                 {
-                    running = false;
+                    isRunning = false;
                 }
             }
         }

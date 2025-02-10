@@ -3,6 +3,7 @@ using GameBoyEmu.CartridgeNamespace;
 using GameBoyEmu.TimersNamespace;
 using NLog;
 using GameBoyEmu.PpuNamespace;
+using GameBoyEmu.SerialTransferNamespace;
 
 namespace GameBoyEmu.MemoryNamespace
 {
@@ -13,6 +14,7 @@ namespace GameBoyEmu.MemoryNamespace
 
         private byte[] _memoryMap = new byte[0x1_0000]; //2^16 addresses (65.536)
         private Cartridge _cartridge = new Cartridge();
+        private SerialTransfer _serialTranfer = SerialTransfer.GetInstance();
         private Timers? _timers;
         private Ppu? _ppu;
 
@@ -25,6 +27,12 @@ namespace GameBoyEmu.MemoryNamespace
                 {
                     switch (address)
                     {
+                        case SerialTransfer.SB_ADDRESS:
+                            _memoryMap[address] = _serialTranfer.Sb;
+                            break;
+                        case SerialTransfer.SC_ADDRESS:
+                            _memoryMap[address] = _serialTranfer.Sc;
+                            break;
                         case Timers.DIV_ADDRESS:
                             _memoryMap[address] = _timers.Div;
                             break;
@@ -55,6 +63,9 @@ namespace GameBoyEmu.MemoryNamespace
                         case Ppu.LYC_ADDRESS:
                             _memoryMap[address] = _ppu.Lyc;
                             break;
+                        case Ppu.DMA_ADDRESS:
+                            _memoryMap[address] = _ppu.Dma;
+                            break;
                         case Ppu.BGP_ADDRESS:
                             _memoryMap[address] = _ppu.Bgp;
                             break;
@@ -69,6 +80,18 @@ namespace GameBoyEmu.MemoryNamespace
                             break;
                         case Ppu.WX_ADDRESS:
                             _memoryMap[address] = _ppu.Wx;
+                            break;
+                        case ushort n when (n >= 0xFE00 && n <= 0xFE9F): //OAM accessibiliy period
+                            if (_ppu.PpuMode > 1)
+                            {
+                                return 0xFF;
+                            }
+                            break;
+                        case ushort n when (n >= 0x8000 && n <= 0x9FFF): //VRAM accessibiliy period
+                            if (_ppu.PpuMode > 2)
+                            {
+                                return 0xFF;
+                            }
                             break;
                         default:
                             break;
@@ -87,6 +110,12 @@ namespace GameBoyEmu.MemoryNamespace
                 {
                     switch (address)
                     {
+                        case SerialTransfer.SB_ADDRESS:
+                            _serialTranfer.Sb = value;
+                            break;
+                        case SerialTransfer.SC_ADDRESS:
+                            _serialTranfer.Sc = value;
+                            break;
                         case Timers.DIV_ADDRESS:
                             _timers.Div = value;
                             break;
@@ -117,6 +146,10 @@ namespace GameBoyEmu.MemoryNamespace
                         case Ppu.LYC_ADDRESS:
                             _ppu.Lyc = value;
                             break;
+                        case Ppu.DMA_ADDRESS:
+                            _ppu.Dma = value;
+                            _ppu.StartDma();
+                            break;
                         case Ppu.BGP_ADDRESS:
                             _ppu.Bgp = value;
                             break;
@@ -131,6 +164,18 @@ namespace GameBoyEmu.MemoryNamespace
                             break;
                         case Ppu.WX_ADDRESS:
                             _ppu.Wx = value;
+                            break;
+                        case ushort n when (n >= 0xFE00 && n <= 0xFE9F): //OAM accessibiliy period
+                            if (_ppu.PpuMode <= 1)
+                            {
+                                _ppu.PpuMode = value;
+                            }
+                            break;
+                        case ushort n when (n >= 0x8000 && n <= 0x9FFF): //VRAM accessibiliy period
+                            if (_ppu.PpuMode <= 2)
+                            {
+                                _memoryMap[address] = value;
+                            }
                             break;
                         default:
                             if (address > ROM_MAX_ADDRESS) //rom writes attempts are possible but must be ignored

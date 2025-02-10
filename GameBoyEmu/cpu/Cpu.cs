@@ -17,6 +17,8 @@ using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.TimersNamespace;
 using System.Reflection.PortableExecutable;
 using GameBoyEmu.MachineCyclesNamespace;
+using GameBoyEmu.ScreenNameSpace;
+using GameBoyEmu.gameboy;
 
 
 namespace GameBoyEmu.CpuNamespace
@@ -304,8 +306,10 @@ namespace GameBoyEmu.CpuNamespace
                     return new Instruction("stop", 0, () =>
                     {
                         _memory[Timers.DIV_ADDRESS] = 0x00;
-                        while (true)
+                        while (GameBoy.IsRunning)
                         {
+                            Screen.ListenForEvents(ref GameBoy.IsRunning);
+
                             byte result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
                             byte joypad = (byte)((result & 0b0000_1000) >> 4);
                             if (joypad != 0)
@@ -617,8 +621,10 @@ namespace GameBoyEmu.CpuNamespace
                 if (_interruptsManager.AreEnabled())
                 {
                     // Enter low-power mode until an interrupt occurs
-                    while (true)
+                    while (GameBoy.IsRunning)
                     {
+                        Screen.ListenForEvents(ref GameBoy.IsRunning);
+
                         byte result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
                         if (result != 0)
                         {
@@ -632,8 +638,10 @@ namespace GameBoyEmu.CpuNamespace
                     if (result == 0)
                     {
                         // No interrupt pending, wait for one to become pending
-                        while (true)
+                        while (GameBoy.IsRunning)
                         {
+                            Screen.ListenForEvents(ref GameBoy.IsRunning);
+
                             result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
                             if (result != 0)
                             {
@@ -1240,7 +1248,7 @@ namespace GameBoyEmu.CpuNamespace
                 case 0b1111_1011:
                     return new Instruction("ei", 1, () =>
                     {
-                        _interruptsManager.EI(_PC);
+                        _interruptsManager.EI();
                     });
                 default:
                     break;
@@ -1892,7 +1900,7 @@ namespace GameBoyEmu.CpuNamespace
         public void Run()
         {
             ushort pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
-            _interruptsManager.HandleEiIfNeeded(pcValue);
+            _interruptsManager.HandleEiIfNeeded();
 
             if (_interruptsManager.AreEnabled())
             {
@@ -1902,7 +1910,7 @@ namespace GameBoyEmu.CpuNamespace
                 byte lcd = (byte)((result & 0b0000_0010) >> 1);
                 byte timer = (byte)((result & 0b0000_0100) >> 2);
                 byte serial = (byte)((result & 0b0000_1000) >> 3);
-                byte joypad = (byte)((result & 0b0000_1000) >> 4);
+                byte joypad = (byte)((result & 0b0001_0000) >> 4);
 
                 if (result != 0)
                 {

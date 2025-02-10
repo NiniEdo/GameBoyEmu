@@ -13,7 +13,7 @@ using GameBoyEmu.ScreenNameSpace;
 
 namespace GameBoyEmu.gameboy
 {
-    internal class GameBoy
+    public class GameBoy
     {
         private const float FPS = 59.7F;
         private const int MCYCLES_PER_FRAME = (int)((4194304 / FPS) / 4);
@@ -25,6 +25,8 @@ namespace GameBoyEmu.gameboy
         private MachineCycles _machineCycles = MachineCycles.GetInstance();
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private Screen _screen = new Screen();
+        private static bool isRunning = true;
+        public static ref bool IsRunning => ref isRunning; // ref return
 
         public GameBoy()
         {
@@ -44,20 +46,19 @@ namespace GameBoyEmu.gameboy
         public void Start()
         {
             Stopwatch timer = new Stopwatch();
-            bool running = true;
 
-            while (running)
+            while (IsRunning)
             {
                 timer.Restart();
 
-                _screen.ListenForEvents(ref running);
+                Screen.ListenForEvents(ref IsRunning);
                 RunFrame();
                 _screen.RenderScreen();
 
                 timer.Stop();
 
                 DelayNextFrame(timer.ElapsedMilliseconds);
-                _logger.Info($"Frame Time : {timer.ElapsedMilliseconds}ms");
+                _logger.Debug($"Frame Time : {timer.ElapsedMilliseconds}ms");
             }
 
             _screen.CloseScreen();

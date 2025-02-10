@@ -1,5 +1,6 @@
 ﻿using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.MemoryNamespace;
+using GameBoyEmu.ppu;
 using GameBoyEmu.TimersNamespace;
 using NLog;
 using NLog.LayoutRenderers;
@@ -18,6 +19,7 @@ namespace GameBoyEmu.PpuNamespace
         private Memory _memory;
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private Interrupts _interrupts = Interrupts.GetInstance();
+        private Dma _dmaHandler = new Dma();
 
         public const ushort LCDC_ADDRESS = 0xFF40;
         public const ushort STAT_ADDRESS = 0xFF41;
@@ -25,6 +27,7 @@ namespace GameBoyEmu.PpuNamespace
         public const ushort SCX_ADDRESS = 0xFF43;
         public const ushort LY_ADDRESS = 0xFF44;
         public const ushort LYC_ADDRESS = 0xFF45;
+        public const ushort DMA_ADDRESS = 0xFF46;
         public const ushort BGP_ADDRESS = 0xFF47;
         public const ushort OBP0_ADDRESS = 0xFF48;
         public const ushort OBP1_ADDRESS = 0xFF49;
@@ -37,6 +40,7 @@ namespace GameBoyEmu.PpuNamespace
         private byte _scx;
         private byte _ly;
         private byte _lyc;
+        private byte _dma;
         private byte _bgp;
         private byte _obp0;
         private byte _obp1;
@@ -52,6 +56,7 @@ namespace GameBoyEmu.PpuNamespace
         public byte Scx { get => _scx; set => _scx = value; }
         public byte Ly { get => _ly; set => _ly = value; }
         public byte Lyc { get => _lyc; set => _lyc = value; }
+        public byte Dma { get => _dma; set => _dma = value; }
         public byte Bgp { get => _bgp; set => _bgp = value; }
         public byte Obp0 { get => _obp0; set => _obp0 = value; }
         public byte Obp1 { get => _obp1; set => _obp1 = value; }
@@ -72,7 +77,7 @@ namespace GameBoyEmu.PpuNamespace
         private bool VBlankInterruptEnable { get => (_stat & 0b0001_0000) == 0b0001_0000; }
         private bool HBlankInterruptEnable { get => (_stat & 0b0000_1000) == 0b0000_1000; }
         private bool CoincidenceFlag { set => _stat = (byte)((_stat & 0b1111_1011) | (value ? 0b0000_0100 : 0)); }
-        private byte PpuMode { set => _stat = (byte)((_stat & 0b1111_1100) | ((byte)value)); }
+        public byte PpuMode { set => _stat = (byte)((_stat & 0b1111_1100) | value); get => (byte)(_stat & 0b0000_0011); }
 
         struct Sprite
         {
@@ -101,10 +106,12 @@ namespace GameBoyEmu.PpuNamespace
 
         public void Tick(int mCycles)
         {
+
             if (_ly == _lyc)
             {
                 _interrupts.RequestStatInterrupt();
             }
+
 
             for (int i = 0; i < mCycles; i++)
             {
@@ -123,7 +130,7 @@ namespace GameBoyEmu.PpuNamespace
                 }
             }
         }
-
+        
         private void OamScan()
         {
             PpuMode = 2;
@@ -134,10 +141,11 @@ namespace GameBoyEmu.PpuNamespace
             {
                 Sprite spriteAttributes = FetchObjectAttributes(_currentAddress);
 
-                _logger.Debug($"Fetched Object: Y={spriteAttributes.Y}, X={spriteAttributes.X}, TileIndex={spriteAttributes.TileIndex}, Flags={spriteAttributes.Flags}");
-
                 int objectSize = SpriteSize == 0 ? 8 : 16;
-                bool isSpriteVisible = spriteAttributes.X > 0 && _ly + 16 >= spriteAttributes.Y && _ly + 16 < (spriteAttributes.Y + objectSize) && sprites.Count < 10;
+                bool isSpriteVisible = spriteAttributes.X > 0 &&
+                    _ly + 16 >= spriteAttributes.Y &&
+                    _ly + 16 < (spriteAttributes.Y + objectSize)
+                    && sprites.Count < 10;
 
                 if (isSpriteVisible && SpriteEnable)
                 {
@@ -158,6 +166,11 @@ namespace GameBoyEmu.PpuNamespace
             PpuMode = 0;
             _ly += 1;
             _elapsedDots = 0;
+        }
+
+        public void StartDma()
+        {
+            _dmaHandler.Start();
         }
 
         private Sprite FetchObjectAttributes(ushort _currentAddress)

@@ -13,7 +13,7 @@ namespace GameBoyEmu.InterruptNamespace
 
         private bool _imeFlag = false;
         protected bool _interruptFlag = false;
-        protected ushort _PC = 0;
+        protected ushort _counter = 0;
         public const ushort IE_ADDRESS = 0xFFFF;
         public const ushort IF_ADDRESS = 0xFFF0;
 
@@ -70,21 +70,21 @@ namespace GameBoyEmu.InterruptNamespace
         public bool AreEnabled() { return _imeFlag; }
         public void EnableInterrupts() { _imeFlag = true; }
         public void DisableInterrupts() { _imeFlag = false; }
-        public void EI(byte[] currentPC)
+        public void EI()
         {
             _interruptFlag = true;
-            _PC = (ushort)((currentPC[1] << 8) | currentPC[0]);
+            _counter = 0;
         }
 
-        public virtual void HandleEiIfNeeded(ushort currentPC)
+        public virtual void HandleEiIfNeeded()
         {
             if (_interruptFlag)
             {
-                if (currentPC == _PC + 2)
+                _counter++;
+                if (_counter == 2)
                 {
                     _interruptFlag = false;
                     _imeFlag = true;
-                    _PC = 0;
                 }
             }
         }
@@ -97,6 +97,11 @@ namespace GameBoyEmu.InterruptNamespace
         public void RequestStatInterrupt()
         {
             IF = (byte)((IF & 0b1111_1101) | (0b0000_0010));
+        }
+
+        public void RequestSerialInterrupt()
+        {
+            IF = (byte)((IF & 0b1111_0111) | (0b0000_1000));
         }
     }
 }
