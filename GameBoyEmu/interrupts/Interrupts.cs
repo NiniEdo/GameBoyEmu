@@ -15,7 +15,7 @@ namespace GameBoyEmu.InterruptNamespace
         protected bool _interruptFlag = false;
         protected ushort _counter = 0;
         public const ushort IE_ADDRESS = 0xFFFF;
-        public const ushort IF_ADDRESS = 0xFFF0;
+        public const ushort IF_ADDRESS = 0xFF0F;
 
         protected Interrupts()
         {
@@ -89,19 +89,49 @@ namespace GameBoyEmu.InterruptNamespace
             }
         }
 
-        public void RequestTimerInterrupt()
+        public void RequestVblankInterrupt()
         {
-            IF = (byte)((IF & 0b1111_1011) | (0b0000_0100));
+            IF = (byte)((IF & 0b1111_1110) | (0b0000_0001));
+        }
+        public void DisableVblankInterrupt()
+        {
+            IF = (byte)(IF & 0b1111_1110);
         }
 
         public void RequestStatInterrupt()
         {
             IF = (byte)((IF & 0b1111_1101) | (0b0000_0010));
         }
+        public void DisableStatInterrupt()
+        {
+            IF = (byte)(IF & 0b1111_1101);
+        }
+
+        public void RequestTimerInterrupt()
+        {
+            IF = (byte)((IF & 0b1111_1011) | (0b0000_0100));
+        }
+        public void DisableTimerInterrupt()
+        {
+            IF = (byte)(IF & 0b1111_1011);
+        }
 
         public void RequestSerialInterrupt()
         {
             IF = (byte)((IF & 0b1111_0111) | (0b0000_1000));
+        }
+        public void DisableSerialInterrupt()
+        {
+            IF = (byte)(IF & 0b1111_0111);
+        }
+
+        public void RequestJoypadInterrupt()
+        {
+            IF = (byte)((IF & 0b1110_1111) | (0b0001_0000));
+        }
+        public void DisableJoypadInterrupt()
+        {
+            IF = (byte)(IF & 0b1110_1111);
         }
     }
 }

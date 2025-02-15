@@ -23,7 +23,6 @@ using GameBoyEmu.gameboy;
 
 namespace GameBoyEmu.CpuNamespace
 {
-    //TODO: Handle clock frequency
     class ByteRegister
     {
         private byte[] _array;
@@ -1878,9 +1877,12 @@ namespace GameBoyEmu.CpuNamespace
             {
                 if (instruction != null)
                 {
-                    //_logger.Debug($"Opcode: {_instructionRegister} ({instruction?.Name})"); // commented to reduce overhead
-                    
+
                     instruction?.Execute();
+
+                    _logger.Debug($"Opcode: {_instructionRegister} ({instruction?.Name})"); // commented to reduce overhead
+                    _logger.Debug($"AF: {BitConverter.ToString(_AF.ToArray())}, BC: {BitConverter.ToString(_BC.ToArray())}, DE: {BitConverter.ToString(_DE.ToArray())}, HL: {BitConverter.ToString(_HL.ToArray())}, SP: {BitConverter.ToString(_SP.ToArray())}, PC: {BitConverter.ToString(_PC.ToArray())}");
+
                     _mCycleCounter += instruction?.Cycles ?? 0;
                     _machineCycles.Tick(_mCycleCounter);
                     _mCycleCounter = 0;
@@ -1919,34 +1921,43 @@ namespace GameBoyEmu.CpuNamespace
                         Push(highByte: _PC[1], lowByte: _PC[0]);
                         _PC[0] = 0x40;
                         _PC[1] = 0x00;
+                        _interruptsManager.DisableInterrupts();
+                        _interruptsManager.DisableVblankInterrupt();
                     }
-                    if (lcd == 1)
+                    else if (lcd == 1)
                     {
                         Push(highByte: _PC[1], lowByte: _PC[0]);
                         _PC[0] = 0x48;
                         _PC[1] = 0x00;
+                        _interruptsManager.DisableInterrupts();
+                        _interruptsManager.DisableStatInterrupt();
                     }
-                    if (timer == 1)
+                    else if (timer == 1)
                     {
                         Push(highByte: _PC[1], lowByte: _PC[0]);
                         _PC[0] = 0x50;
                         _PC[1] = 0x00;
+                        _interruptsManager.DisableInterrupts();
+                        _interruptsManager.DisableTimerInterrupt();
                     }
-                    if (serial == 1)
+                    else if (serial == 1)
                     {
                         Push(highByte: _PC[1], lowByte: _PC[0]);
                         _PC[0] = 0x58;
                         _PC[1] = 0x00;
+                        _interruptsManager.DisableInterrupts();
+                        _interruptsManager.DisableSerialInterrupt();
                     }
-                    if (joypad == 1)
+                    else if (joypad == 1)
                     {
                         Push(highByte: _PC[1], lowByte: _PC[0]);
                         _PC[0] = 0x60;
                         _PC[1] = 0x00;
+                        _interruptsManager.DisableInterrupts();
+                        _interruptsManager.DisableJoypadInterrupt();
                     }
                     _mCycleCounter += 5;
                 }
-
             }
 
             byte data = Fetch();

@@ -43,17 +43,15 @@ namespace GameBoyEmu.SerialTransferNamespace
             if ((_sc & 0b1000_0000) >> 7 == 1)
             {
                 char outputChar = (char)_sb;
-
                 if (outputChar == '\n')
                 {
-                    _logger.Info(_charBuffer);
+                    _logger.Info($"Serial Message: {_charBuffer}");
                     _charBuffer = "";
                 }
                 else
                 {
                     _charBuffer += outputChar;
                 }
-
 
                 _sc &= 0x7F;
                 _interrupts.RequestSerialInterrupt();
