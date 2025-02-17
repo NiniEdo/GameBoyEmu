@@ -1190,7 +1190,6 @@ namespace GameBoyEmu.CpuNamespace
                     return new Instruction("ldh a, [imm8]", 3, () =>
                     {
                         ushort memoryPointer = (ushort)(0xFF00 + Fetch());
-
                         _AF[1] = _memory[memoryPointer];
                     });
                 case 0b1111_1010:
@@ -1200,7 +1199,6 @@ namespace GameBoyEmu.CpuNamespace
                         byte highByte = Fetch();
 
                         ushort memoryPointer = (ushort)((highByte << 8) | lowByte);
-
                         _AF[1] = _memory[memoryPointer];
                     });
                 case 0b1110_1000:
@@ -1923,6 +1921,8 @@ namespace GameBoyEmu.CpuNamespace
                         _PC[1] = 0x00;
                         _interruptsManager.DisableInterrupts();
                         _interruptsManager.DisableVblankInterrupt();
+                        _mCycleCounter += 5;
+
                     }
                     else if (lcd == 1)
                     {
@@ -1931,6 +1931,8 @@ namespace GameBoyEmu.CpuNamespace
                         _PC[1] = 0x00;
                         _interruptsManager.DisableInterrupts();
                         _interruptsManager.DisableStatInterrupt();
+                        _mCycleCounter += 5;
+
                     }
                     else if (timer == 1)
                     {
@@ -1939,6 +1941,8 @@ namespace GameBoyEmu.CpuNamespace
                         _PC[1] = 0x00;
                         _interruptsManager.DisableInterrupts();
                         _interruptsManager.DisableTimerInterrupt();
+                        _mCycleCounter += 5;
+
                     }
                     else if (serial == 1)
                     {
@@ -1947,6 +1951,8 @@ namespace GameBoyEmu.CpuNamespace
                         _PC[1] = 0x00;
                         _interruptsManager.DisableInterrupts();
                         _interruptsManager.DisableSerialInterrupt();
+                        _mCycleCounter += 5;
+
                     }
                     else if (joypad == 1)
                     {
@@ -1955,8 +1961,8 @@ namespace GameBoyEmu.CpuNamespace
                         _PC[1] = 0x00;
                         _interruptsManager.DisableInterrupts();
                         _interruptsManager.DisableJoypadInterrupt();
+                        _mCycleCounter += 5;
                     }
-                    _mCycleCounter += 5;
                 }
             }
 

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using GameBoyEmu.MemoryNamespace;
 using GameBoyEmu.InterruptNamespace;
 using System.Net;
+using NLog;
 
 namespace GameBoyEmu.TimersNamespace
 {
@@ -13,7 +14,9 @@ namespace GameBoyEmu.TimersNamespace
     {
         private Interrupts _interrupts;
         private static Timers? _instance;
-        private Memory? _memory;
+        private Memory? _memory; 
+        private Logger _logger = LogManager.GetCurrentClassLogger();
+
 
         public const ushort DIV_ADDRESS = 0xFF04;
         public const ushort TIMA_ADDRESS = 0xFF05;
@@ -29,10 +32,27 @@ namespace GameBoyEmu.TimersNamespace
         private byte previousAndResult = 0;
         private bool _isTimaReloaded = false;
         private int _tCycleCount = 0;
+
         public byte Div { get => (byte)(_div >> 8); set => _div = 0x00; }
-        public byte Tima { get => _tima; set => _tima = value; }
+        public byte Tima
+        {
+            get => _tima;
+            set
+            {
+                if (_isTimaReloaded)
+                {
+                    _isTimaReloaded = false;
+                    _tCycleCount = 0;
+                }
+                _tima = value;
+            }
+        }
         public byte Tma { get => _tma; set => _tma = value; }
-        public byte Tac { get => _tac; set => _tac = value; }
+        public byte Tac
+        {
+            get => _tac;
+            set => _tac = value;
+        }
 
         private Timers()
         {
@@ -55,7 +75,6 @@ namespace GameBoyEmu.TimersNamespace
         public void Tick(int mCycleCount)
         {
             int tCycles = (4 * mCycleCount);
-
             _div += (ushort)tCycles;
 
             for (int i = 0; i < tCycles; i++)
@@ -67,8 +86,8 @@ namespace GameBoyEmu.TimersNamespace
         private void DetectFallingEdge()
         {
             timerEnable = (byte)((_tac & 0b0000_0100) >> 2);
-
             byte andResult = (byte)(timerEnable & GetDivBit());
+
             if (_isTimaReloaded)
             {
                 HandleTimaReload();
@@ -81,6 +100,7 @@ namespace GameBoyEmu.TimersNamespace
                     {
                         _isTimaReloaded = true;
                         _tima = 0x00;
+                        _tCycleCount = 0;
                     }
                     else
                     {
@@ -91,23 +111,15 @@ namespace GameBoyEmu.TimersNamespace
             previousAndResult = andResult;
         }
 
-        /*TODO: check if this causes problems:
-         * If TIMA is written to on the same T-cycle on which the reload from TMA occurs the write is ignored 
-         * and the value in TMA will be loaded into TIMA. However, if TMA is written to on the same T-cycle on which the reload occurs, 
-         * TMA is updated before its value is loaded into TIMA, meaning the reload will be carried out with the new value.
-         */
         private void HandleTimaReload()
         {
             _tCycleCount += 1;
             if (_tCycleCount == 4)
             {
-                if (_tima != 0x00)
-                {
-                    _tima = _tma;
-                    _isTimaReloaded = false;
-                    _tCycleCount = 0;
-                    _interrupts.RequestTimerInterrupt();
-                }
+                _tima = _tma;
+                _isTimaReloaded = false;
+                _tCycleCount = 0;
+                _interrupts.RequestTimerInterrupt();
             }
         }
 
