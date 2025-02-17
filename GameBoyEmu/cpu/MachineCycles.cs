@@ -15,6 +15,9 @@ namespace GameBoyEmu.MachineCyclesNamespace
         private static MachineCycles? _instance;
         private Timers _timers = Timers.GetInstance();
         private Ppu? _ppu;
+        private int _tickCounter = 0;
+
+        public int TickCounter { get => _tickCounter; set => _tickCounter = value; }
 
         private MachineCycles()
         { }
@@ -41,6 +44,8 @@ namespace GameBoyEmu.MachineCyclesNamespace
         {
             _timers.Tick();
             _ppu!.Tick();
+
+            _tickCounter += 1;
         }
     }
 }

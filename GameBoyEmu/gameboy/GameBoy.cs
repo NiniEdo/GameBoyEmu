@@ -27,7 +27,6 @@ namespace GameBoyEmu.gameboy
         private Screen _screen = new Screen();
         private static bool isRunning = true;
         public static ref bool IsRunning => ref isRunning; // ref return
-
         public GameBoy()
         {
             _memory = new Memory();
@@ -66,11 +65,10 @@ namespace GameBoyEmu.gameboy
 
         private void RunFrame()
         {
-            int elapsedMCycles = 0;
-            while (elapsedMCycles < MCYCLES_PER_FRAME)
+            _machineCycles.TickCounter = 0;
+            while (_machineCycles.TickCounter < MCYCLES_PER_FRAME)
             {
                 _cpu.Run();
-                elapsedMCycles += _machineCycles.LastInstructionCycles;
             }
         }
 
