@@ -1,4 +1,5 @@
-﻿using GameBoyEmu.InterruptNamespace;
+﻿using GameBoyEmu.interfaces;
+using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.MemoryNamespace;
 using GameBoyEmu.ppu;
 using GameBoyEmu.TimersNamespace;
@@ -14,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace GameBoyEmu.PpuNamespace
 {
-    public class Ppu
+    public class Ppu : ITickable
     {
         private Memory _memory;
         private Logger _logger = LogManager.GetCurrentClassLogger();
@@ -104,33 +105,28 @@ namespace GameBoyEmu.PpuNamespace
             _memory = memory;
         }
 
-        public void Tick(int mCycles)
+        public void Tick()
         {
-
             if (_ly == _lyc)
             {
                 _interrupts.RequestStatInterrupt();
             }
 
-
-            for (int i = 0; i < mCycles; i++)
+            _elapsedDots += 4;
+            if (_elapsedDots == 80)
             {
-                _elapsedDots += 4;
-                if (_elapsedDots == 80)
-                {
-                    OamScan();
-                }
-                else if (_elapsedDots == 172)
-                {
-                    DrawPixels();
-                }
-                else if (_elapsedDots == 456)
-                {
-                    HorizontalBlank();
-                }
+                OamScan();
+            }
+            else if (_elapsedDots == 172)
+            {
+                DrawPixels();
+            }
+            else if (_elapsedDots == 456)
+            {
+                HorizontalBlank();
             }
         }
-        
+
         private void OamScan()
         {
             PpuMode = 2;

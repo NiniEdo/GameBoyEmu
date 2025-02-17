@@ -7,10 +7,11 @@ using GameBoyEmu.MemoryNamespace;
 using GameBoyEmu.InterruptNamespace;
 using System.Net;
 using NLog;
+using GameBoyEmu.interfaces;
 
 namespace GameBoyEmu.TimersNamespace
 {
-    public class Timers
+    public class Timers : ITickable
     {
         private Interrupts _interrupts;
         private static Timers? _instance;
@@ -72,9 +73,9 @@ namespace GameBoyEmu.TimersNamespace
             _memory = mem;
         }
 
-        public void Tick(int mCycleCount)
+        public void Tick()
         {
-            int tCycles = (4 * mCycleCount);
+            int tCycles = 4;
             _div += (ushort)tCycles;
 
             for (int i = 0; i < tCycles; i++)
