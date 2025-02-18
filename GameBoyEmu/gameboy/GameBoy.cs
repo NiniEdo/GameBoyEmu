@@ -57,7 +57,7 @@ namespace GameBoyEmu.gameboy
                 timer.Stop();
 
                 DelayNextFrame(timer.ElapsedMilliseconds);
-                _logger.Debug($"Frame Time : {timer.ElapsedMilliseconds}ms");
+                _logger.Info($"Frame Time : {timer.ElapsedMilliseconds}ms");
             }
 
             _screen.CloseScreen();
