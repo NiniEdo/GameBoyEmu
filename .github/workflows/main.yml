@@ -1,6 +1,58 @@
 name: Build SDL2 App
 
+on:name: Build and Release
+
 on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution in Release configuration
+        run: dotnet build --configuration Release
+
+      - name: Publish project
+        run: dotnet publish --configuration Release --output ./publish
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ github.run_number }}"
+          release_name: "Release v${{ github.run_number }}"
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./publish
+          asset_name: publish.zip
+          asset_content_type: application/zip
+
+      - name: Zip published files
+        run: zip -r publish.zip ./publish
+        shell: bash
   push:
     branches:
       - main  
