@@ -1,0 +1,49 @@
+name: Build SDL2 App
+
+on:
+  push:
+    branches:
+      - main  
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        runtime: [win-x64, linux-x64, osx-x64]
+        exclude:
+          - os: ubuntu-latest
+            runtime: win-x64
+          - os: ubuntu-latest
+            runtime: osx-x64
+          - os: windows-latest
+            runtime: linux-x64
+          - os: windows-latest
+            runtime: osx-x64
+          - os: macos-latest
+            runtime: win-x64
+          - os: macos-latest
+            runtime: linux-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore NuGet packages
+        run: dotnet restore
+
+      - name: Build and Publish
+        run: dotnet publish -c Release -r ${{ matrix.runtime }} --self-contained true -o publish/
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-app-${{ matrix.runtime }}
+          path: publish/
