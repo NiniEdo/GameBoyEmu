@@ -30,6 +30,13 @@ jobs:
       - name: Publish GameBoyEmu project
         run: dotnet publish GameBoyEmu/GameBoyEmu.csproj --configuration Release --self-contained true --runtime win-x64 --output ./publish /p:PublishTrimmed=false /p:IncludeNativeLibrariesForSelfExtract=true
         
+      - name: Copy Native Libraries
+        run: |
+            mkdir -p ./publish
+            find ./GameBoyEmu/bin/Release/net8.0-windows -name "SDL2.dll" -exec cp {} ./publish/ \;
+            find ./GameBoyEmu/bin/Release/net8.0-windows -name "*.dll" -exec cp {} ./publish/ \;
+        shell: bash
+
       - name: Verify SDL2 DLL
         run: |
           if [ ! -f "./publish/SDL2.dll" ]; then
