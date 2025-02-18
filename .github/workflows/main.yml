@@ -29,6 +29,14 @@ jobs:
 
       - name: Publish GameBoyEmu project
         run: dotnet publish GameBoyEmu/GameBoyEmu.csproj --configuration Release --self-contained true --runtime win-x64 --output ./publish /p:PublishTrimmed=false /p:IncludeNativeLibrariesForSelfExtract=true
+        
+      - name: Verify SDL2 DLL
+        run: |
+          if [ ! -f "./publish/SDL2.dll" ]; then
+            echo "SDL2.dll not found in publish directory!"
+            exit 1
+          fi
+        shell: bash
 
       - name: Zip published files
         run: zip -r GameBoyEmu.zip ./publish
