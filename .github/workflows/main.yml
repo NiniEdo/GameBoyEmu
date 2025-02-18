@@ -33,8 +33,8 @@ jobs:
       - name: Copy Native Libraries
         run: |
             mkdir -p ./publish
-            find ./GameBoyEmu/bin/Release/net8.0-windows -name "SDL2.dll" -exec cp {} ./publish/ \;
-            find ./GameBoyEmu/bin/Release/net8.0-windows -name "*.dll" -exec cp {} ./publish/ \;
+            find ./GameBoyEmu/bin/Release/net8.0 -name "SDL2.dll" -exec cp {} ./publish/ \;
+            find ./GameBoyEmu/bin/Release/net8.0 -name "*.dll" -exec cp {} ./publish/ \;
         shell: bash
 
       - name: Verify SDL2 DLL
