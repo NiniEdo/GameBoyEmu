@@ -27,30 +27,28 @@ jobs:
       - name: Build solution in Release configuration
         run: dotnet build --configuration Release --no-restore
 
-      - name: Publish project for Windows
-        run: dotnet publish --configuration Release --self-contained true --runtime win-x64 --output ./publish
+      - name: Publish GameBoyEmu project
+        run: dotnet publish GameBoyEmu/GameBoyEmu.csproj --configuration Release --self-contained true --runtime win-x64 --output ./publish
 
       - name: Zip published files
-        run: zip -r publish.zip ./publish
+        run: zip -r GameBoyEmu.zip ./publish
         shell: bash
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1.1.2
+        run: |
+          release_url=$(gh release create "v${{ github.run_number }}" \
+            --title "Release v${{ github.run_number }}" \
+            --notes "Release v${{ github.run_number }}" \
+            --draft=false \
+            --prerelease=false)
+          echo "release_url=${release_url}" >> $GITHUB_OUTPUT
+          echo "upload_url=${release_url/tag/releases/latest/assets?name=}" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: "v${{ github.run_number }}"
-          release_name: "Release v${{ github.run_number }}"
-          draft: false
-          prerelease: false
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        run: |
+          gh release upload "v${{ github.run_number }}" GameBoyEmu.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: publish.zip
-          asset_name: publish.zip
-          asset_content_type: application/zip
