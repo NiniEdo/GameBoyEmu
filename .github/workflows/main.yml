@@ -27,8 +27,8 @@ jobs:
       - name: Build solution in Release configuration
         run: dotnet build --configuration Release --no-restore
 
-      - name: Publish project
-        run: dotnet publish --configuration Release --output ./publish
+      - name: Publish project for Windows
+        run: dotnet publish --configuration Release --self-contained true --runtime win-x64 --output ./publish
 
       - name: Zip published files
         run: zip -r publish.zip ./publish
@@ -36,7 +36,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: actions/create-release@v1.1.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
