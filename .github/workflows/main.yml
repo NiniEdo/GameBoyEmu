@@ -1,6 +1,4 @@
-name: Build SDL2 App
-
-on:name: Build and Release
+name: Build and Release
 
 on:
   push:
@@ -12,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Setup .NET
@@ -24,10 +22,14 @@ jobs:
         run: dotnet restore
 
       - name: Build solution in Release configuration
-        run: dotnet build --configuration Release
+        run: dotnet build --configuration Release --no-restore
 
       - name: Publish project
         run: dotnet publish --configuration Release --output ./publish
+
+      - name: Zip published files
+        run: zip -r publish.zip ./publish
+        shell: bash
 
       - name: Create Release
         id: create_release
@@ -46,56 +48,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./publish
+          asset_path: publish.zip
           asset_name: publish.zip
           asset_content_type: application/zip
-
-      - name: Zip published files
-        run: zip -r publish.zip ./publish
-        shell: bash
-  push:
-    branches:
-      - main  
-
-jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        runtime: [win-x64, linux-x64, osx-x64]
-        exclude:
-          - os: ubuntu-latest
-            runtime: win-x64
-          - os: ubuntu-latest
-            runtime: osx-x64
-          - os: windows-latest
-            runtime: linux-x64
-          - os: windows-latest
-            runtime: osx-x64
-          - os: macos-latest
-            runtime: win-x64
-          - os: macos-latest
-            runtime: linux-x64
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup .NET 8
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Restore NuGet packages
-        run: dotnet restore
-
-      - name: Build and Publish
-        run: dotnet publish -c Release -r ${{ matrix.runtime }} --self-contained true -o publish/
-
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: my-app-${{ matrix.runtime }}
-          path: publish/
