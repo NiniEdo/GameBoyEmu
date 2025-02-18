@@ -27,9 +27,9 @@ namespace GameBoyEmu.gameboy
         private Screen _screen = new Screen();
         private static bool isRunning = true;
         public static ref bool IsRunning => ref isRunning; // ref return
-        public GameBoy()
+        public GameBoy(string[] cartridgePath)
         {
-            _memory = new Memory();
+            _memory = new Memory(cartridgePath);
             Interrupts.GetInstance().SetMemory(_memory);
             Timers.GetInstance().SetMemory(_memory);
 

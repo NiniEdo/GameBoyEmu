@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest  # Cambiato a windows-latest per supportare Inno Setup
 
     steps:
       - name: Checkout repository
@@ -28,11 +28,43 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Publish project for Windows
-        run: dotnet publish --configuration Release --self-contained true --runtime win-x64 --output ./publish
+        run: |
+          dotnet publish --configuration Release --self-contained true --runtime win-x64 --output ./publish/portable
+          
+      - name: Create Portable ZIP
+        run: Compress-Object -Path ./publish/portable -DestinationPath GameBoyEmu-portable.zip
+        shell: pwsh
 
-      - name: Zip published files
-        run: zip -r publish.zip ./publish
-        shell: bash
+      - name: Download Inno Setup
+        run: |
+          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
+          Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+        shell: pwsh
+
+      - name: Create Inno Setup Script
+        run: |
+          @"
+          [Setup]
+          AppName=GameBoy Emulator
+          AppVersion=1.0
+          DefaultDirName={pf}\GameBoyEmu
+          DefaultGroupName=GameBoy Emulator
+          OutputDir=./installer
+          OutputBaseFilename=GameBoyEmu-setup
+          
+          [Files]
+          Source: "./publish/portable/*"; DestDir: "{app}"; Flags: recursesubdirs
+          
+          [Icons]
+          Name: "{group}\GameBoy Emulator"; Filename: "{app}\GameBoyEmu.exe"
+          Name: "{commondesktop}\GameBoy Emulator"; Filename: "{app}\GameBoyEmu.exe"
+          "@ | Out-File -FilePath "installer.iss" -Encoding UTF8
+        shell: pwsh
+
+      - name: Build Installer
+        run: |
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' installer.iss
+        shell: pwsh
 
       - name: Create Release
         id: create_release
@@ -45,12 +77,23 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload Release Asset
+      - name: Upload Portable Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: publish.zip
-          asset_name: publish.zip
+          asset_path: GameBoyEmu-portable.zip
+          asset_name: GameBoyEmu-portable.zip
           asset_content_type: application/zip
+
+      - name: Upload Installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./installer/GameBoyEmu-setup.exe
+          asset_name: GameBoyEmu-setup.exe
+          asset_content_type: application/x-msdownload
+

@@ -236,26 +236,36 @@ namespace GameBoyEmu.CartridgeNamespace
         //TODO: Implement switchable rom and mbc
         public Cartridge() { }
 
-        public byte[] LoadRomFromCartridge()
+        public byte[] LoadRomFromCartridge(string[] cartridgePath)
         {
-            string directoryPath = @"..\..\..";
-            String[] files = Directory.GetFiles(directoryPath, "*.gb");
-            String? bgFile = files.FirstOrDefault();
+            string directoryPath = @$"..{Path.DirectorySeparatorChar}..{Path.DirectorySeparatorChar}..";
+            string[] files = Directory.GetFiles(directoryPath, "*.gb");
 
-            if (bgFile == null)
+            string bgFile = "";
+            if (cartridgePath.Length > 0)
+            {
+                Console.WriteLine(cartridgePath[0]);
+                bgFile = cartridgePath[0];
+            }
+            else
+            {
+                bgFile = files.FirstOrDefault() ?? "";
+            }
+
+            if (bgFile.Equals(""))
             {
                 throw new CartridgeException("Cartrige not found");
             }
-
             try
             {
                 _romDump = File.ReadAllBytes(bgFile);
-                _logger.Info($"Loaded cartridge: {bgFile.Replace("..\\..\\..\\", "")}");
             }
             catch (IOException IOex)
             {
                 throw new CartridgeException("Failed to read cartridge: " + IOex.Message);
             }
+
+            _logger.Info($"Loaded cartridge: {bgFile}");
 
             ReadHeaderData();
 

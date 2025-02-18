@@ -4,6 +4,7 @@ using GameBoyEmu.TimersNamespace;
 using NLog;
 using GameBoyEmu.PpuNamespace;
 using GameBoyEmu.SerialTransferNamespace;
+using System.Runtime.CompilerServices;
 
 namespace GameBoyEmu.MemoryNamespace
 {
@@ -194,11 +195,11 @@ namespace GameBoyEmu.MemoryNamespace
         }
 
         private byte[] _romDump = Array.Empty<byte>();
-        public Memory()
+        public Memory(string[] cartridgePath)
         {
             try
             {
-                _romDump = _cartridge.LoadRomFromCartridge();
+                _romDump = _cartridge.LoadRomFromCartridge(cartridgePath);
                 if (_romDump == null)
                 {
                     throw new CartridgeException("Rom dump is null, aborting");

@@ -16,7 +16,7 @@ namespace GameBoyEmu
             GameBoy _gameboy;
             try
             {
-                _gameboy = new GameBoy();
+                _gameboy = new GameBoy(args);
                 _gameboy.Start();
             }
             catch (Exception ex)
