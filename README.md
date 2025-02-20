@@ -37,7 +37,6 @@ dotnet run
 -	Sayers.SDL2.Core (v1.0.11): Planned for handling graphics and input (implementation in progress).
 
 ### Known Issues
-- Incomplete CPU Emulation: Some CPU instructions and behaviors may not be fully implemented.
 - Graphics Output: Graphics rendering is not yet implemented.
 - Limited MBC Support: Memory Bank Controllers (MBC) are not fully supported.
 
