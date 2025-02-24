@@ -14,7 +14,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-
+using GameBoyEmu.Utils;
 
 namespace GameBoyEmu.PpuNamespace
 {
@@ -54,8 +54,8 @@ namespace GameBoyEmu.PpuNamespace
         private int _currentX = 0;
         private int _windowsLineCounter = 0;
         private int _elapsedDots = 0;
-        Queue<int> _backgroudFifo = new Queue<int>();
-        Queue<int> _spriteFifo = new Queue<int>();
+        FixedSizeQueue<int> _backgroudFifo = new FixedSizeQueue<int>(8);
+        FixedSizeQueue<int> _spriteFifo = new FixedSizeQueue<int>(8);
 
         ushort _currentAddress = 0xFE00;
 
@@ -169,10 +169,7 @@ namespace GameBoyEmu.PpuNamespace
 
             PushToBackgroundFifo(tileData);
 
-
             SendToLcd();
-
-
         }
 
         private void HorizontalBlank()
@@ -259,7 +256,6 @@ namespace GameBoyEmu.PpuNamespace
 
         public void PushToBackgroundFifo(byte[] tileData)
         {
-
             if (_backgroudFifo.Count == 0)
             {
                 for (int i = 7; i >= 0; i--)
@@ -268,11 +264,18 @@ namespace GameBoyEmu.PpuNamespace
                     byte littleNumber = (byte)((tileData[0] >> i) & 0x01);
 
                     byte pixel = (byte)(bigNumber | littleNumber);
-                    _backgroudFifo.Enqueue(pixel);
+
+                    try
+                    {
+                        _backgroudFifo.Enqueue(pixel);
+                    }
+                    catch
+                    {
+                        throw;
+                    }
                     _currentX++;
                 }
             }
-
         }
 
         private void SendToLcd()
