@@ -83,13 +83,13 @@ namespace GameBoyEmu.MemoryNamespace
                             _memoryMap[address] = _ppu.Wx;
                             break;
                         case ushort n when (n >= 0xFE00 && n <= 0xFE9F): //OAM accessibiliy period
-                            if (_ppu.PpuMode > 1)
+                            if (_ppu.PpuMode < 2)
                             {
                                 return 0xFF;
                             }
                             break;
                         case ushort n when (n >= 0x8000 && n <= 0x9FFF): //VRAM accessibiliy period
-                            if (_ppu.PpuMode > 2)
+                            if (_ppu.PpuMode != 3)
                             {
                                 return 0xFF;
                             }

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using GameBoyEmu.InterruptNamespace;
+using GameBoyEmu.Utils;
 using NLog;
 using SDL2;
 
@@ -11,6 +13,7 @@ namespace GameBoyEmu.ScreenNameSpace
     internal class Screen
     {
         private Logger _logger = LogManager.GetCurrentClassLogger();
+        private static Screen? _instance;
 
         private IntPtr _window;
         private IntPtr _renderer;
@@ -20,8 +23,17 @@ namespace GameBoyEmu.ScreenNameSpace
         private const int SCREEN_WIDTH = SCREEN_WIDTH_PIXELS * SCREEN_MULTIPLIER;
         private const int SCREEN_HEIGHT = SCREEN_HEIGHT_PIXELS * SCREEN_MULTIPLIER;
 
-        public Screen()
+        private Screen()
         { }
+
+        public static Screen GetInstance()
+        {
+            if (_instance == null)
+            {
+                _instance = new Screen();
+            }
+            return _instance;
+        }
 
         public void InitScreen()
         {
@@ -53,13 +65,37 @@ namespace GameBoyEmu.ScreenNameSpace
                 _logger.Error($"Creation of SDL render failed: {SDL.SDL_GetError()}");
                 return;
             }
-
-            DrawTiles();
         }
 
-        public void RenderScreen()
+        public void RenderPixel(byte y, List<byte> pixelBuffer)
         {
+            byte[][] greenPalette =
+            {
+                new byte[] { 155, 188, 15 },
+                new byte[] { 139, 172, 15 },
+                new byte[] {  48,  98, 48 },
+                new byte[] {  15,  56, 15 }
+            };
 
+            for (int x = 0; x < pixelBuffer.Count; x++)
+            {
+                byte pixel = pixelBuffer[x];
+                byte[] color = greenPalette[pixel];
+
+                SDL.SDL_SetRenderDrawColor(_renderer, color[0], color[1], color[2], 255);
+
+                SDL.SDL_Rect pixelRect = new SDL.SDL_Rect
+                {
+                    x = x * SCREEN_MULTIPLIER,
+                    y = y * SCREEN_MULTIPLIER,
+                    w = SCREEN_MULTIPLIER,
+                    h = SCREEN_MULTIPLIER
+                };
+
+                SDL.SDL_RenderFillRect(_renderer, ref pixelRect);
+            }
+
+            SDL.SDL_RenderPresent(_renderer);
         }
 
         public static void ListenForEvents(ref bool isRunning)

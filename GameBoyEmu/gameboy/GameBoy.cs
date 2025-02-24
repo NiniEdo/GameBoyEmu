@@ -24,7 +24,8 @@ namespace GameBoyEmu.gameboy
         private Memory _memory;
         private MachineCycles _machineCycles = MachineCycles.GetInstance();
         private Logger _logger = LogManager.GetCurrentClassLogger();
-        private Screen _screen = new Screen();
+        private Screen _screen = Screen.GetInstance();
+
         private static bool isRunning = true;
         public static ref bool IsRunning => ref isRunning; // ref return
         public GameBoy(string[] cartridgePath)
@@ -52,7 +53,6 @@ namespace GameBoyEmu.gameboy
 
                 Screen.ListenForEvents(ref IsRunning);
                 RunFrame();
-                _screen.RenderScreen();
 
                 timer.Stop();
 

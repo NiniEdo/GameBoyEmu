@@ -15,6 +15,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using GameBoyEmu.Utils;
+using GameBoyEmu.ScreenNameSpace;
 
 namespace GameBoyEmu.PpuNamespace
 {
@@ -24,6 +25,7 @@ namespace GameBoyEmu.PpuNamespace
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private Interrupts _interrupts = Interrupts.GetInstance();
         private Dma _dmaHandler = new Dma();
+        private Screen _screen = Screen.GetInstance();
 
         public const ushort LCDC_ADDRESS = 0xFF40;
         public const ushort STAT_ADDRESS = 0xFF41;
@@ -54,8 +56,12 @@ namespace GameBoyEmu.PpuNamespace
         private int _currentX = 0;
         private int _windowsLineCounter = 0;
         private int _elapsedDots = 0;
-        FixedSizeQueue<int> _backgroudFifo = new FixedSizeQueue<int>(8);
-        FixedSizeQueue<int> _spriteFifo = new FixedSizeQueue<int>(8);
+        private int _elapsedDotsInVblank = 0;
+
+        FixedSizeQueue<byte> _backgroudFifo = new FixedSizeQueue<byte>(8);
+        FixedSizeQueue<byte> _spriteFifo = new FixedSizeQueue<byte>(8);
+        List<Sprite> _spritesBuffer = new List<Sprite>();
+        List<byte> _pixelBuffer = new List<byte>();
 
         ushort _currentAddress = 0xFE00;
 
@@ -133,12 +139,16 @@ namespace GameBoyEmu.PpuNamespace
             {
                 HorizontalBlank();
             }
+
+            if (_ly == 144)
+            {
+                VerticalBlank();
+            }
         }
 
         private void OamScan()
         {
             PpuMode = 2;
-            List<Sprite> sprites = new List<Sprite>();
             _currentAddress = 0xFE00;
 
             for (int i = 0; i < 40; i++)
@@ -149,41 +159,63 @@ namespace GameBoyEmu.PpuNamespace
                 bool isSpriteVisible = spriteAttributes.X > 0 &&
                     _ly + 16 >= spriteAttributes.Y &&
                     _ly + 16 < (spriteAttributes.Y + objectSize)
-                    && sprites.Count < 10;
+                    && _spritesBuffer.Count < 10;
 
                 if (isSpriteVisible && SpriteEnable)
                 {
-                    sprites.Add(spriteAttributes);
+                    _spritesBuffer.Add(spriteAttributes);
                 }
 
                 _currentAddress += 4;
             }
         }
 
-        private void DrawPixels() //TODO: handle memory blocking during periods
+        private void DrawPixels()
         {
             PpuMode = 3;
+            while (_currentX < 160)
+            {
+                byte tileNumber = FetchTileNumber();
+                byte[] tileData = FetchDataTile(tileNumber);
 
-            byte tileNumber = FetchTileNumber();
-            byte[] tileData = FetchDataTile(tileNumber);
+                PushToBackgroundFifo(tileData);
 
-            PushToBackgroundFifo(tileData);
-
-            SendToLcd();
+                SendToLcd();
+            }
         }
 
         private void HorizontalBlank()
         {
             PpuMode = 0;
+
             _ly += 1;
             _elapsedDots = 0;
             _currentX = 0;
+
+            _logger.Info("Horizontal Blank");
         }
 
         private void VerticalBlank()
         {
             PpuMode = 1;
-            _windowsLineCounter = 0;
+
+            if (_elapsedDotsInVblank == 0)
+            {
+                _logger.Info("Vblank");
+                _windowsLineCounter = 0;
+                _interrupts.RequestVblankInterrupt();
+            }
+
+            if (_elapsedDotsInVblank == 4560)
+            {
+                _ly = 0;
+                _elapsedDots = 0;
+                _elapsedDotsInVblank = 0;
+            }
+            else
+            {
+                _elapsedDotsInVblank += _elapsedDots;
+            }
         }
 
         public void StartDma()
@@ -258,12 +290,19 @@ namespace GameBoyEmu.PpuNamespace
         {
             if (_backgroudFifo.Count == 0)
             {
+                int pixelsToDiscard = _scx & 0x07;
+
                 for (int i = 7; i >= 0; i--)
                 {
                     byte bigNumber = (byte)(((tileData[1] >> i) & 0b0000_0001) << 1);
                     byte littleNumber = (byte)((tileData[0] >> i) & 0x01);
-
                     byte pixel = (byte)(bigNumber | littleNumber);
+
+                    if (_currentX < pixelsToDiscard && _currentX == 0)
+                    {
+                        _currentX++;
+                        continue;
+                    }
 
                     try
                     {
@@ -280,7 +319,17 @@ namespace GameBoyEmu.PpuNamespace
 
         private void SendToLcd()
         {
+            for (int i = 0; i < _backgroudFifo.Count; i++)
+            {
+                byte pixel = _backgroudFifo.Dequeue();
+                _pixelBuffer.Add(pixel);
+            }
 
+            if (_pixelBuffer.Count == 160)
+            {
+                _screen.RenderPixel(y: _ly, pixelBuffer: _pixelBuffer);
+                _pixelBuffer.Clear();
+            }
         }
 
         private bool FetchingWindow()
