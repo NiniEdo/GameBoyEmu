@@ -10,8 +10,11 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+
 
 namespace GameBoyEmu.PpuNamespace
 {
@@ -48,7 +51,12 @@ namespace GameBoyEmu.PpuNamespace
         private byte _wy;
         private byte _wx;
 
+        private int _currentX = 0;
+        private int _windowsLineCounter = 0;
         private int _elapsedDots = 0;
+        Queue<int> _backgroudFifo = new Queue<int>();
+        Queue<int> _spriteFifo = new Queue<int>();
+
         ushort _currentAddress = 0xFE00;
 
         public byte Lcdc { get => _lcdc; set => _lcdc = value; }
@@ -152,9 +160,19 @@ namespace GameBoyEmu.PpuNamespace
             }
         }
 
-        private void DrawPixels()
+        private void DrawPixels() //TODO: handle memory blocking during periods
         {
             PpuMode = 3;
+
+            byte tileNumber = FetchTileNumber();
+            byte[] tileData = FetchDataTile(tileNumber);
+
+            PushToBackgroundFifo(tileData);
+
+
+            SendToLcd();
+
+
         }
 
         private void HorizontalBlank()
@@ -162,6 +180,13 @@ namespace GameBoyEmu.PpuNamespace
             PpuMode = 0;
             _ly += 1;
             _elapsedDots = 0;
+            _currentX = 0;
+        }
+
+        private void VerticalBlank()
+        {
+            PpuMode = 1;
+            _windowsLineCounter = 0;
         }
 
         public void StartDma()
@@ -181,5 +206,83 @@ namespace GameBoyEmu.PpuNamespace
             return ObjectAttributes;
         }
 
+        private byte FetchTileNumber()
+        {
+            ushort tilemapAddress;
+            if (FetchingWindow())
+            {
+                tilemapAddress = (ushort)(WindowTileMap == 0 ? 0x9800 : 0x9C00);
+
+                int windowYOffset = _windowsLineCounter / 8;
+                int xOffset = _currentX & 0x1F;
+
+                tilemapAddress += (ushort)((windowYOffset * 32) + xOffset);
+            }
+            else
+            {
+                tilemapAddress = (ushort)(BgTileMapArea == 0 ? 0x9800 : 0x9C00);
+
+                int yOffset = ((_ly + _scy) & 0xFF) / 8;
+                int xOffset = (_currentX + (_scx / 8)) & 0x1F;
+
+                tilemapAddress += (ushort)((yOffset * 32) + xOffset);
+            }
+
+            tilemapAddress &= 0x3FF;
+            return _memory.ReadVramDirectly(tilemapAddress);
+        }
+
+        private byte[] FetchDataTile(byte tileNumber)
+        {
+            ushort baseTileDataAddress;
+            if (BgAndWindowTileDataArea == 0)
+                baseTileDataAddress = (ushort)(0x8000 + (tileNumber * 16));
+            else
+                baseTileDataAddress = (ushort)(0x8800 + (sbyte)tileNumber * 16);
+
+            int lineOffset;
+            if (FetchingWindow())
+            {
+                lineOffset = 2 * (_windowsLineCounter % 8);
+            }
+            else
+            {
+                lineOffset = 2 * ((_ly + _scy) % 8);
+            }
+
+            byte lowByte = _memory.ReadVramDirectly((ushort)(baseTileDataAddress + lineOffset));
+            byte highByte = _memory.ReadVramDirectly((ushort)(baseTileDataAddress + lineOffset + 1));
+            byte[] data = { lowByte, highByte };
+
+            return data;
+        }
+
+        public void PushToBackgroundFifo(byte[] tileData)
+        {
+
+            if (_backgroudFifo.Count == 0)
+            {
+                for (int i = 7; i >= 0; i--)
+                {
+                    byte bigNumber = (byte)(((tileData[1] >> i) & 0b0000_0001) << 1);
+                    byte littleNumber = (byte)((tileData[0] >> i) & 0x01);
+
+                    byte pixel = (byte)(bigNumber | littleNumber);
+                    _backgroudFifo.Enqueue(pixel);
+                    _currentX++;
+                }
+            }
+
+        }
+
+        private void SendToLcd()
+        {
+
+        }
+
+        private bool FetchingWindow()
+        {
+            return (WindowEnable && _currentX >= _wx - 7);
+        }
     }
 }
