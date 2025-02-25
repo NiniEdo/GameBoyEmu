@@ -40,6 +40,8 @@ namespace GameBoyEmu.PpuNamespace
         public const ushort WY_ADDRESS = 0xFF4A;
         public const ushort WX_ADDRESS = 0xFF4B;
 
+        private const int DOTS_PER_FRAME = 70224;
+
         private byte _lcdc;
         private byte _stat;
         private byte _scy;
@@ -56,7 +58,7 @@ namespace GameBoyEmu.PpuNamespace
         private int _currentX = 0;
         private int _windowsLineCounter = 0;
         private int _elapsedDots = 0;
-        private int _elapsedDotsInVblank = 0;
+        private int _totalElapsedDots = 0;
 
         FixedSizeQueue<byte> _backgroudFifo = new FixedSizeQueue<byte>(8);
         FixedSizeQueue<byte> _spriteFifo = new FixedSizeQueue<byte>(8);
@@ -126,8 +128,15 @@ namespace GameBoyEmu.PpuNamespace
                 _interrupts.RequestStatInterrupt();
             }
 
+
             _elapsedDots += 4;
-            if (_elapsedDots == 80)
+            _totalElapsedDots += 4;
+
+            if (_ly >= 144)
+            {
+                VerticalBlank();
+            }
+            else if (_elapsedDots == 80)
             {
                 OamScan();
             }
@@ -139,11 +148,10 @@ namespace GameBoyEmu.PpuNamespace
             {
                 HorizontalBlank();
             }
-
-            if (_ly == 144)
-            {
-                VerticalBlank();
-            }
+        }
+        public void StartDma()
+        {
+            _dmaHandler.Start();
         }
 
         private void OamScan()
@@ -175,8 +183,8 @@ namespace GameBoyEmu.PpuNamespace
             PpuMode = 3;
             while (_currentX < 160)
             {
-                byte tileNumber = FetchTileNumber();
-                byte[] tileData = FetchDataTile(tileNumber);
+                byte tileNumber = GetTile();
+                byte[] tileData = GetTileData(tileNumber);
 
                 PushToBackgroundFifo(tileData);
 
@@ -188,39 +196,36 @@ namespace GameBoyEmu.PpuNamespace
         {
             PpuMode = 0;
 
+            if (WindowEnable && _ly >= _wy)
+            {
+                _windowsLineCounter++;
+            }
             _ly += 1;
             _elapsedDots = 0;
             _currentX = 0;
-
-            _logger.Info("Horizontal Blank");
         }
 
         private void VerticalBlank()
         {
             PpuMode = 1;
 
-            if (_elapsedDotsInVblank == 0)
+            if (_ly == 144)
             {
-                _logger.Info("Vblank");
                 _windowsLineCounter = 0;
                 _interrupts.RequestVblankInterrupt();
             }
 
-            if (_elapsedDotsInVblank == 4560)
+            if (_totalElapsedDots >= DOTS_PER_FRAME)
             {
                 _ly = 0;
+                _totalElapsedDots = 0;
                 _elapsedDots = 0;
-                _elapsedDotsInVblank = 0;
             }
-            else
+            else if (_elapsedDots == 456)
             {
-                _elapsedDotsInVblank += _elapsedDots;
+                _ly += 1;
+                _elapsedDots = 0;
             }
-        }
-
-        public void StartDma()
-        {
-            _dmaHandler.Start();
         }
 
         private Sprite FetchObjectAttributes(ushort _currentAddress)
@@ -235,7 +240,7 @@ namespace GameBoyEmu.PpuNamespace
             return ObjectAttributes;
         }
 
-        private byte FetchTileNumber()
+        private byte GetTile()
         {
             ushort tilemapAddress;
             if (FetchingWindow())
@@ -261,13 +266,13 @@ namespace GameBoyEmu.PpuNamespace
             return _memory.ReadVramDirectly(tilemapAddress);
         }
 
-        private byte[] FetchDataTile(byte tileNumber)
+        private byte[] GetTileData(byte tileNumber)
         {
             ushort baseTileDataAddress;
-            if (BgAndWindowTileDataArea == 0)
+            if (BgAndWindowTileDataArea == 1)
                 baseTileDataAddress = (ushort)(0x8000 + (tileNumber * 16));
             else
-                baseTileDataAddress = (ushort)(0x8800 + (sbyte)tileNumber * 16);
+                baseTileDataAddress = (ushort)(0x9000 + (sbyte)tileNumber * 16);
 
             int lineOffset;
             if (FetchingWindow())
@@ -286,27 +291,29 @@ namespace GameBoyEmu.PpuNamespace
             return data;
         }
 
-        public void PushToBackgroundFifo(byte[] tileData)
+        private void PushToBackgroundFifo(byte[] tileData)
         {
+            int originalX = _currentX;
+
             if (_backgroudFifo.Count == 0)
             {
                 int pixelsToDiscard = _scx & 0x07;
 
                 for (int i = 7; i >= 0; i--)
                 {
-                    byte bigNumber = (byte)(((tileData[1] >> i) & 0b0000_0001) << 1);
                     byte littleNumber = (byte)((tileData[0] >> i) & 0x01);
-                    byte pixel = (byte)(bigNumber | littleNumber);
+                    byte bigNumber = (byte)(((tileData[1] >> i) & 0b0000_0001) << 1);
 
-                    if (_currentX < pixelsToDiscard && _currentX == 0)
+                    byte pixelColor = (byte)(bigNumber | littleNumber);
+
+                    if (_currentX < pixelsToDiscard && originalX == 0)
                     {
-                        _currentX++;
                         continue;
                     }
 
                     try
                     {
-                        _backgroudFifo.Enqueue(pixel);
+                        _backgroudFifo.Enqueue(pixelColor);
                     }
                     catch
                     {
@@ -319,16 +326,11 @@ namespace GameBoyEmu.PpuNamespace
 
         private void SendToLcd()
         {
-            for (int i = 0; i < _backgroudFifo.Count; i++)
+            int pixels = _backgroudFifo.Count();
+            for (int i = 0; i < pixels; i++)
             {
                 byte pixel = _backgroudFifo.Dequeue();
-                _pixelBuffer.Add(pixel);
-            }
-
-            if (_pixelBuffer.Count == 160)
-            {
-                _screen.RenderPixel(y: _ly, pixelBuffer: _pixelBuffer);
-                _pixelBuffer.Clear();
+                _screen.RenderPixel(x: (byte)(_currentX + i - 8), y: _ly, pixel);
             }
         }
 
@@ -336,5 +338,6 @@ namespace GameBoyEmu.PpuNamespace
         {
             return (WindowEnable && _currentX >= _wx - 7);
         }
+
     }
 }

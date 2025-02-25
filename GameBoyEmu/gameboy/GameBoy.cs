@@ -53,6 +53,7 @@ namespace GameBoyEmu.gameboy
 
                 Screen.ListenForEvents(ref IsRunning);
                 RunFrame();
+                _screen.PresentScreen();
 
                 timer.Stop();
 

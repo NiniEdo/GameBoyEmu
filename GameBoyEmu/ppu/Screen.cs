@@ -67,34 +67,31 @@ namespace GameBoyEmu.ScreenNameSpace
             }
         }
 
-        public void RenderPixel(byte y, List<byte> pixelBuffer)
+        private static readonly byte[][] GreenPalette = {
+            new byte[] { 155, 188, 15 },
+            new byte[] { 139, 172, 15 },
+            new byte[] { 48, 98, 48 },
+            new byte[] { 15, 56, 15 }
+        };
+
+        public void RenderPixel(byte x, byte y, byte pixel)
         {
-            byte[][] greenPalette =
+            byte[] color = GreenPalette[pixel];
+            SDL.SDL_SetRenderDrawColor(_renderer, color[0], color[1], color[2], 255);
+
+            SDL.SDL_Rect pixelRect = new SDL.SDL_Rect
             {
-                new byte[] { 155, 188, 15 },
-                new byte[] { 139, 172, 15 },
-                new byte[] {  48,  98, 48 },
-                new byte[] {  15,  56, 15 }
+                x = x * SCREEN_MULTIPLIER,
+                y = y * SCREEN_MULTIPLIER,
+                w = SCREEN_MULTIPLIER,
+                h = SCREEN_MULTIPLIER
             };
 
-            for (int x = 0; x < pixelBuffer.Count; x++)
-            {
-                byte pixel = pixelBuffer[x];
-                byte[] color = greenPalette[pixel];
+            SDL.SDL_RenderFillRect(_renderer, ref pixelRect);
+        }
 
-                SDL.SDL_SetRenderDrawColor(_renderer, color[0], color[1], color[2], 255);
-
-                SDL.SDL_Rect pixelRect = new SDL.SDL_Rect
-                {
-                    x = x * SCREEN_MULTIPLIER,
-                    y = y * SCREEN_MULTIPLIER,
-                    w = SCREEN_MULTIPLIER,
-                    h = SCREEN_MULTIPLIER
-                };
-
-                SDL.SDL_RenderFillRect(_renderer, ref pixelRect);
-            }
-
+        public void PresentScreen()
+        {
             SDL.SDL_RenderPresent(_renderer);
         }
 
