@@ -27,12 +27,10 @@ git clone https://github.com/yourusername/GameBoyEmu.git
 dotnet build
 ```
 ### Running the Emulator
-1.	Place ROM files:
-Copy your Game Boy ROM files (.gb extension) into the root directory of the project.
-2.	Run the emulator:
-```bash
-dotnet run
-```
+1.	Select ROM files:
+Copy your Game Boy ROM files (.gb extension) into the root directory of the project if running from an ide.
+Otherwise pass the path to the cartridge as a parameter after the executable.
+
 ### Dependencies
 -	NLog (v5.3.4): Used for logging emulator operations and debugging.
 -	Sayers.SDL2.Core (v1.0.11): Planned for handling graphics and input (implementation in progress).
