@@ -21,6 +21,14 @@ namespace GameBoyEmu.PpuNamespace
 {
     public class Ppu : ITickable
     {
+        private enum Mode
+        {
+            HBlank,
+            VBlank,
+            OAM,
+            LCDTransfer,
+        }
+
         private Memory _memory;
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private Interrupts _interrupts = Interrupts.GetInstance();
@@ -80,7 +88,7 @@ namespace GameBoyEmu.PpuNamespace
         public byte Wy { get => _wy; set => _wy = value; }
         public byte Wx { get => _wx; set => _wx = value; }
 
-        private bool LcdAndPpuEnable { get => (byte)((_lcdc & 0b1000_0000) >> 7) == 1; }
+        private bool LcdAndPpuEnable { get => (byte)((_lcdc & 0b1000_0000) >> 7) == 1; } //TODO: USE 
         private byte WindowTileMap { get => (byte)((_lcdc & 0b0100_0000) >> 6); }
         private bool WindowEnable { get => (byte)((_lcdc & 0b0010_0000) >> 5) == 1; }
         private byte BgAndWindowTileDataArea { get => (byte)((_lcdc & 0b0001_0000) >> 4); }
@@ -123,32 +131,61 @@ namespace GameBoyEmu.PpuNamespace
 
         public void Tick()
         {
+            //if (!LcdAndPpuEnable)
+            //    return;
+
             if (_ly == _lyc)
             {
                 _interrupts.RequestStatInterrupt();
             }
-
 
             _elapsedDots += 4;
             _totalElapsedDots += 4;
 
             if (_ly >= 144)
             {
-                VerticalBlank();
+                PpuMode = 1;
+                ChangeMode();
             }
             else if (_elapsedDots == 80)
             {
-                OamScan();
+                PpuMode = 2;
+                ChangeMode();
             }
             else if (_elapsedDots == 172)
             {
-                DrawPixels();
+                PpuMode = 3;
+                ChangeMode();
             }
             else if (_elapsedDots == 456)
             {
-                HorizontalBlank();
+                PpuMode = 0;
+                ChangeMode();
             }
         }
+
+        private void ChangeMode()
+        {
+            switch (PpuMode)
+            {
+                case 2:
+                    OamScan();
+                    break;
+                case 3:
+                    DrawPixels();
+                    break;
+                case 0:
+                    HorizontalBlank();
+                    break;
+                case 1:
+                    VerticalBlank();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+
         public void StartDma()
         {
             _dmaHandler.Start();
@@ -243,6 +280,7 @@ namespace GameBoyEmu.PpuNamespace
         private byte GetTile()
         {
             ushort tilemapAddress;
+            ushort tilemapAddressOffset;
             if (FetchingWindow())
             {
                 tilemapAddress = (ushort)(WindowTileMap == 0 ? 0x9800 : 0x9C00);
@@ -250,7 +288,7 @@ namespace GameBoyEmu.PpuNamespace
                 int windowYOffset = _windowsLineCounter / 8;
                 int xOffset = _currentX & 0x1F;
 
-                tilemapAddress += (ushort)((windowYOffset * 32) + xOffset);
+                tilemapAddressOffset = (ushort)(((windowYOffset * 32) + xOffset) & 0x3FF);
             }
             else
             {
@@ -259,10 +297,10 @@ namespace GameBoyEmu.PpuNamespace
                 int yOffset = ((_ly + _scy) & 0xFF) / 8;
                 int xOffset = (_currentX + (_scx / 8)) & 0x1F;
 
-                tilemapAddress += (ushort)((yOffset * 32) + xOffset);
+                tilemapAddressOffset = (ushort)(((yOffset * 32) + xOffset ) & 0x3FF);
             }
 
-            tilemapAddress &= 0x3FF;
+            tilemapAddress += tilemapAddressOffset;
             return _memory.ReadVramDirectly(tilemapAddress);
         }
 
@@ -330,7 +368,7 @@ namespace GameBoyEmu.PpuNamespace
             for (int i = 0; i < pixels; i++)
             {
                 byte pixel = _backgroudFifo.Dequeue();
-                _screen.RenderPixel(x: (byte)(_currentX + i - 8), y: _ly, pixel);
+                _screen.RenderPixel(x: (byte)(_currentX - pixels + i ), y: _ly, pixel);
             }
         }
 

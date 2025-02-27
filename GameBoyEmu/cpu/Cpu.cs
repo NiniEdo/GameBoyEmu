@@ -320,8 +320,6 @@ namespace GameBoyEmu.CpuNamespace
                         _memory[Timers.DIV_ADDRESS] = 0x00;
                         while (GameBoy.IsRunning)
                         {
-                            Screen.ListenForEvents(ref GameBoy.IsRunning);
-
                             byte result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
                             byte joypad = (byte)((result & 0b0000_1000) >> 4);
                             if (joypad != 0)
@@ -634,13 +632,12 @@ namespace GameBoyEmu.CpuNamespace
                     // Enter low-power mode until an interrupt occurs
                     while (GameBoy.IsRunning)
                     {
-                        Screen.ListenForEvents(ref GameBoy.IsRunning);
-
                         byte result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
                         if (result != 0)
                         {
                             break;
                         }
+                        _machineCycles.Tick();
                     }
                 }
                 else
@@ -651,8 +648,6 @@ namespace GameBoyEmu.CpuNamespace
                         // No interrupt pending, wait for one to become pending
                         while (GameBoy.IsRunning)
                         {
-                            Screen.ListenForEvents(ref GameBoy.IsRunning);
-
                             result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
                             if (result != 0)
                             {
@@ -1903,10 +1898,9 @@ namespace GameBoyEmu.CpuNamespace
             {
                 if (instruction != null)
                 {
-
                     instruction?.Execute();
 
-                    //_logger.Debug($"Opcode: {_instructionRegister} ({instruction?.Name})"); // commented to reduce overhead
+                    //_logger.Info($"Opcode: {_instructionRegister} ({instruction?.Name})"); // commented to reduce overhead
                     //_logger.Debug($"AF: {BitConverter.ToString(_AF.ToArray())}, BC: {BitConverter.ToString(_BC.ToArray())}, DE: {BitConverter.ToString(_DE.ToArray())}, HL: {BitConverter.ToString(_HL.ToArray())}, SP: {BitConverter.ToString(_SP.ToArray())}, PC: {BitConverter.ToString(_PC.ToArray())}");
                 }
                 else

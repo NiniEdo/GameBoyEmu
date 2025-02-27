@@ -51,7 +51,7 @@ namespace GameBoyEmu.gameboy
             {
                 timer.Restart();
 
-                Screen.ListenForEvents(ref IsRunning);
+                Screen.ListenForEvents();
                 RunFrame();
                 _screen.PresentScreen();
 
@@ -67,7 +67,7 @@ namespace GameBoyEmu.gameboy
         private void RunFrame()
         {
             _machineCycles.TickCounter = 0;
-            while (_machineCycles.TickCounter < MCYCLES_PER_FRAME)
+            while (_machineCycles.TickCounter < MCYCLES_PER_FRAME && GameBoy.IsRunning)
             {
                 _cpu.Run();
             }

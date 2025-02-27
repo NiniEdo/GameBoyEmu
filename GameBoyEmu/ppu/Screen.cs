@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using GameBoyEmu.gameboy;
 using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.Utils;
 using NLog;
@@ -95,7 +96,7 @@ namespace GameBoyEmu.ScreenNameSpace
             SDL.SDL_RenderPresent(_renderer);
         }
 
-        public static void ListenForEvents(ref bool isRunning)
+        public static void ListenForEvents()
         {
             SDL.SDL_Event e;
 
@@ -103,7 +104,8 @@ namespace GameBoyEmu.ScreenNameSpace
             {
                 if (e.type == SDL.SDL_EventType.SDL_QUIT)
                 {
-                    isRunning = false;
+                    GameBoy.IsRunning = false;
+                    return;
                 }
             }
         }
@@ -142,4 +144,4 @@ namespace GameBoyEmu.ScreenNameSpace
             SDL.SDL_RenderPresent(_renderer);
         }
     }
-}
+}                           
