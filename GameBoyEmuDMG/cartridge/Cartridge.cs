@@ -238,7 +238,7 @@ namespace GameBoyEmu.CartridgeNamespace
 
         public byte[] LoadRomFromCartridge(string[] cartridgePath)
         {
-            string directoryPath = @$"..{Path.DirectorySeparatorChar}..{Path.DirectorySeparatorChar}..";
+            string directoryPath = @$"..{Path.DirectorySeparatorChar}..{Path.DirectorySeparatorChar}..{Path.DirectorySeparatorChar}..";
             string[] files = Directory.GetFiles(directoryPath, "*.gb");
 
             string bgFile = "";

@@ -17,7 +17,6 @@ using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.TimersNamespace;
 using System.Reflection.PortableExecutable;
 using GameBoyEmu.MachineCyclesNamespace;
-using GameBoyEmu.ScreenNameSpace;
 using GameBoyEmu.gameboy;
 using System.Reflection;
 

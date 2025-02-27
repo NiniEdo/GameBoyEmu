@@ -5,6 +5,7 @@ using NLog;
 using GameBoyEmu.PpuNamespace;
 using GameBoyEmu.SerialTransferNamespace;
 using System.Runtime.CompilerServices;
+using System;
 
 namespace GameBoyEmu.MemoryNamespace
 {
@@ -100,7 +101,7 @@ namespace GameBoyEmu.MemoryNamespace
                 }
                 else
                 {
-                    throw new Exception("PPU or Timers not specified");
+                    throw new Exception("PPU o Timers non inizializzati. Assicurarsi di chiamare SetPpu() prima di accedere alla memoria.");
                 }
 
                 return _memoryMap[address];
@@ -195,8 +196,9 @@ namespace GameBoyEmu.MemoryNamespace
         }
 
         private byte[] _romDump = Array.Empty<byte>();
-        public Memory(string[] cartridgePath)
+        public Memory()
         {
+            string[] cartridgePath = { "" };
             try
             {
                 _romDump = _cartridge.LoadRomFromCartridge(cartridgePath);

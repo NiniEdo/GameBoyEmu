@@ -2,7 +2,6 @@
 using GameBoyEmu.interfaces;
 using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.PpuNamespace;
-using GameBoyEmu.ScreenNameSpace;
 using GameBoyEmu.TimersNamespace;
 using System;
 using System.Collections.Generic;
@@ -39,7 +38,6 @@ namespace GameBoyEmu.MachineCyclesNamespace
 
         public void Tick()
         {
-            Screen.ListenForEvents();
             TickComponents();
         }
 

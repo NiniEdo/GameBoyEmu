@@ -13,9 +13,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using GameBoyEmu.Utils;
-using GameBoyEmu.ScreenNameSpace;
 
 namespace GameBoyEmu.PpuNamespace
 {
@@ -33,7 +31,6 @@ namespace GameBoyEmu.PpuNamespace
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private Interrupts _interrupts = Interrupts.GetInstance();
         private Dma _dmaHandler = new Dma();
-        private Screen _screen = Screen.GetInstance();
 
         public const ushort LCDC_ADDRESS = 0xFF40;
         public const ushort STAT_ADDRESS = 0xFF41;
@@ -368,7 +365,7 @@ namespace GameBoyEmu.PpuNamespace
             for (int i = 0; i < pixels; i++)
             {
                 byte pixel = _backgroudFifo.Dequeue();
-                _screen.RenderPixel(x: (byte)(_currentX - pixels + i ), y: _ly, pixel);
+                //_screen.RenderPixel(x: (byte)(_currentX - pixels + i ), y: _ly, pixel);
             }
         }
 

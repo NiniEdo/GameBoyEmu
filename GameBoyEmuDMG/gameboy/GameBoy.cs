@@ -2,14 +2,12 @@
 using System.Diagnostics;
 using System.Threading;
 using NLog;
-using SDL2;
 using GameBoyEmu.CpuNamespace;
 using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.MachineCyclesNamespace;
 using GameBoyEmu.MemoryNamespace;
 using GameBoyEmu.PpuNamespace;
 using GameBoyEmu.TimersNamespace;
-using GameBoyEmu.ScreenNameSpace;
 
 namespace GameBoyEmu.gameboy
 {
@@ -24,13 +22,12 @@ namespace GameBoyEmu.gameboy
         private Memory _memory;
         private MachineCycles _machineCycles = MachineCycles.GetInstance();
         private Logger _logger = LogManager.GetCurrentClassLogger();
-        private Screen _screen = Screen.GetInstance();
 
         private static bool isRunning = true;
         public static ref bool IsRunning => ref isRunning; // ref return
-        public GameBoy(string[] cartridgePath)
+        public GameBoy()
         {
-            _memory = new Memory(cartridgePath);
+            _memory = new Memory();
             Interrupts.GetInstance().SetMemory(_memory);
             Timers.GetInstance().SetMemory(_memory);
 
@@ -40,7 +37,6 @@ namespace GameBoyEmu.gameboy
             _memory.SetPpu(_ppu);
             _machineCycles.SetPpu(_ppu);
 
-            _screen.InitScreen();
         }
 
         public void Start()
@@ -51,17 +47,12 @@ namespace GameBoyEmu.gameboy
             {
                 timer.Restart();
 
-                Screen.ListenForEvents();
                 RunFrame();
-                _screen.PresentScreen();
-
                 timer.Stop();
 
                 DelayNextFrame(timer.ElapsedMilliseconds);
                 _logger.Info($"Frame Time : {timer.ElapsedMilliseconds}ms");
             }
-
-            _screen.CloseScreen();
         }
 
         private void RunFrame()

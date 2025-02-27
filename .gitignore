@@ -1,6 +1,6 @@
-GameBoyEmu/*.gb
-GameBoyEmu/bin/*
-GameBoyEmu/obj/*
+GameBoyEmuDMG/*.gb
+GameBoyEmuDMG/bin/*
+GameBoyEmuDMG/obj/*
 .vs/*
 gb-test-roms/
 GameBoyEmuTests
