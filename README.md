@@ -1,4 +1,4 @@
-#A C# GameBoy emulator
+# A C# GameBoy emulator
 
 My first emulator, written just for fun.
 
