@@ -39,7 +39,6 @@ namespace GameBoyEmu.MachineCyclesNamespace
 
         public void Tick()
         {
-            Screen.ListenForEvents();
             TickComponents();
         }
 

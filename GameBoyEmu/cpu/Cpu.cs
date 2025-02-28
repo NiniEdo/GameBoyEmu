@@ -59,6 +59,7 @@ namespace GameBoyEmu.CpuNamespace
 
         private byte _instructionRegister = 0x00;
         private bool keepRunning = true;
+        private bool isHalted = false;
 
         private readonly Dictionary<paramsType, List<byte[]>> _16bitsRegistries;
         private readonly Dictionary<paramsType, List<ByteRegister?>> _8bitsRegistries;
@@ -627,44 +628,7 @@ namespace GameBoyEmu.CpuNamespace
         {
             Instruction halt = new Instruction("halt", () =>
             {
-                if (_interruptsManager.AreEnabled())
-                {
-                    // Enter low-power mode until an interrupt occurs
-                    while (GameBoy.IsRunning)
-                    {
-                        byte result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
-                        if (result != 0)
-                        {
-                            break;
-                        }
-                        _machineCycles.Tick();
-                    }
-                }
-                else
-                {
-                    byte result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
-                    if (result == 0)
-                    {
-                        // No interrupt pending, wait for one to become pending
-                        while (GameBoy.IsRunning)
-                        {
-                            result = (byte)(_interruptsManager.IE & _interruptsManager.IF);
-                            if (result != 0)
-                            {
-                                break;
-                            }
-                            _machineCycles.Tick();
-                        }
-                    }
-                    else
-                    {
-                        // Interrupt pending, continue execution but read the next byte twice
-                        ushort pcValue = (ushort)((_PC[1] << 8) | _PC[0]);
-                        byte nextByte = _memory[pcValue];
-                        _instructionRegister = nextByte;
-                        DecodeAndExecute();
-                    }
-                }
+                isHalted = true;
             });
 
             switch (opcode)
@@ -1932,6 +1896,8 @@ namespace GameBoyEmu.CpuNamespace
 
                 if (result != 0)
                 {
+                    isHalted = false;
+
                     if (vBlank == 1)
                     {
                         _machineCycles.Tick();
@@ -1999,6 +1965,12 @@ namespace GameBoyEmu.CpuNamespace
                         _interruptsManager.DisableJoypadInterrupt();
                     }
                 }
+            }
+
+            if (isHalted)
+            {
+                _machineCycles.Tick();
+                return;
             }
 
             byte data = Fetch();

@@ -87,7 +87,6 @@ namespace GameBoyEmu.PpuNamespace
         public byte Obp1 { get => _obp1; set => _obp1 = value; }
         public byte Wy { get => _wy; set => _wy = value; }
         public byte Wx { get => _wx; set => _wx = value; }
-
         private bool LcdAndPpuEnable { get => (byte)((_lcdc & 0b1000_0000) >> 7) == 1; } //TODO: USE 
         private byte WindowTileMap { get => (byte)((_lcdc & 0b0100_0000) >> 6); }
         private bool WindowEnable { get => (byte)((_lcdc & 0b0010_0000) >> 5) == 1; }

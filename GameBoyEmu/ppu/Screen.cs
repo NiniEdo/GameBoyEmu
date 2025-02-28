@@ -8,6 +8,8 @@ using GameBoyEmu.InterruptNamespace;
 using GameBoyEmu.Utils;
 using NLog;
 using SDL2;
+using static System.Formats.Asn1.AsnWriter;
+using static SDL2.SDL;
 
 namespace GameBoyEmu.ScreenNameSpace
 {
@@ -16,8 +18,9 @@ namespace GameBoyEmu.ScreenNameSpace
         private Logger _logger = LogManager.GetCurrentClassLogger();
         private static Screen? _instance;
 
-        private IntPtr _window;
-        private IntPtr _renderer;
+        private nint _window;
+        private nint _renderer;
+            
         private const int SCREEN_MULTIPLIER = 4;
         private const int SCREEN_WIDTH_PIXELS = 160;
         private const int SCREEN_HEIGHT_PIXELS = 144;
@@ -38,34 +41,9 @@ namespace GameBoyEmu.ScreenNameSpace
 
         public void InitScreen()
         {
-            if (SDL.SDL_Init(SDL.SDL_INIT_VIDEO) < 0)
-            {
-                _logger.Error($"SDL Initialization failed: {SDL.SDL_GetError()}");
-                return;
-            }
-
-            _window = SDL.SDL_CreateWindow(
-                 "GameBoyEmu By Edoardo Nini",
-                 SDL.SDL_WINDOWPOS_CENTERED,
-                 SDL.SDL_WINDOWPOS_CENTERED,
-                 SCREEN_WIDTH,
-                 SCREEN_HEIGHT,
-                 SDL.SDL_WindowFlags.SDL_WINDOW_SHOWN
-            );
-
-            if (_window == IntPtr.Zero)
-            {
-                _logger.Error($"Creation of SDL window failed: {SDL.SDL_GetError()}");
-                return;
-            }
-
-            _renderer = SDL.SDL_CreateRenderer(_window, -1, SDL.SDL_RendererFlags.SDL_RENDERER_ACCELERATED);
-
-            if (_renderer == IntPtr.Zero)
-            {
-                _logger.Error($"Creation of SDL render failed: {SDL.SDL_GetError()}");
-                return;
-            }
+            _ = SDL_Init(SDL_INIT_VIDEO);
+            _window = SDL_CreateWindow("SpecBoy", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WindowFlags.SDL_WINDOW_SHOWN);
+            _renderer = SDL_CreateRenderer(_window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED);
         }
 
         private static readonly byte[][] GreenPalette = {
@@ -98,14 +76,13 @@ namespace GameBoyEmu.ScreenNameSpace
 
         public static void ListenForEvents()
         {
-            SDL.SDL_Event e;
-
-            while (SDL.SDL_PollEvent(out e) != 0)
+            while (SDL_PollEvent(out SDL_Event e) != 0)
             {
-                if (e.type == SDL.SDL_EventType.SDL_QUIT)
+                switch (e.type)
                 {
-                    GameBoy.IsRunning = false;
-                    return;
+                    case SDL_EventType.SDL_QUIT:
+                        GameBoy.IsRunning = false;
+                        break;
                 }
             }
         }
@@ -144,4 +121,4 @@ namespace GameBoyEmu.ScreenNameSpace
             SDL.SDL_RenderPresent(_renderer);
         }
     }
-}                           
+}
