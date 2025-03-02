@@ -53,6 +53,7 @@ namespace GameBoyEmu.gameboy
 
                 RunFrame();
                 _screen.PresentScreen();
+
                 timer.Stop();
 
                 DelayNextFrame(timer.ElapsedMilliseconds);

@@ -20,7 +20,7 @@ namespace GameBoyEmu.ScreenNameSpace
 
         private nint _window;
         private nint _renderer;
-            
+
         private const int SCREEN_MULTIPLIER = 4;
         private const int SCREEN_WIDTH_PIXELS = 160;
         private const int SCREEN_HEIGHT_PIXELS = 144;
@@ -41,10 +41,28 @@ namespace GameBoyEmu.ScreenNameSpace
 
         public void InitScreen()
         {
-            _ = SDL_Init(SDL_INIT_VIDEO);
-            _window = SDL_CreateWindow("SpecBoy", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WindowFlags.SDL_WINDOW_SHOWN);
+            if (SDL_Init(SDL_INIT_VIDEO) < 0)
+            {
+                _logger.Error($"SDL initialization failed: {SDL_GetError()}");
+                return;
+            }
+
+            _window = SDL_CreateWindow("SpecBoy", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                      SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WindowFlags.SDL_WINDOW_SHOWN);
+            if (_window == IntPtr.Zero)
+            {
+                _logger.Error($"Window creation failed: {SDL_GetError()}");
+                return;
+            }
+
             _renderer = SDL_CreateRenderer(_window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED);
+            if (_renderer == IntPtr.Zero)
+            {
+                _logger.Error($"Renderer creation failed: {SDL_GetError()}");
+                return;
+            }
         }
+
 
         private static readonly byte[][] GreenPalette = {
             new byte[] { 155, 188, 15 },
@@ -55,6 +73,9 @@ namespace GameBoyEmu.ScreenNameSpace
 
         public void RenderPixel(byte x, byte y, byte pixel)
         {
+            if (_renderer == IntPtr.Zero)
+                return;
+
             byte[] color = GreenPalette[pixel];
             SDL.SDL_SetRenderDrawColor(_renderer, color[0], color[1], color[2], 255);
 

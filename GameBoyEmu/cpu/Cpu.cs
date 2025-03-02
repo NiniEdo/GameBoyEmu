@@ -1864,7 +1864,7 @@ namespace GameBoyEmu.CpuNamespace
                 {
                     instruction?.Execute();
 
-                    //_logger.Info($"Opcode: {_instructionRegister} ({instruction?.Name})"); // commented to reduce overhead
+                    //_logger.Debug($"Opcode: {_instructionRegister} ({instruction?.Name})"); // commented to reduce overhead
                     //_logger.Debug($"AF: {BitConverter.ToString(_AF.ToArray())}, BC: {BitConverter.ToString(_BC.ToArray())}, DE: {BitConverter.ToString(_DE.ToArray())}, HL: {BitConverter.ToString(_HL.ToArray())}, SP: {BitConverter.ToString(_SP.ToArray())}, PC: {BitConverter.ToString(_PC.ToArray())}");
                 }
                 else

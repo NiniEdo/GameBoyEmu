@@ -45,7 +45,7 @@ namespace GameBoyEmu.MachineCyclesNamespace
         private void TickComponents()
         {
             _timers.Tick();
-            _ppu!.Tick();
+            //_ppu!.Tick();
 
             _tickCounter += 1;
         }
