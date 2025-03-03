@@ -76,10 +76,14 @@ namespace GameBoyEmu.PpuNamespace
         ushort _currentAddress = 0xFE00;
 
         public byte Lcdc { get => _lcdc; set => _lcdc = value; }
-        public byte Stat { get => _stat; set => _stat = value; }
+        public byte Stat
+        {
+            get => _stat;
+            set => _stat = (byte)(_stat | (value & 0b1111_1000));
+        }
         public byte Scy { get => _scy; set => _scy = value; }
         public byte Scx { get => _scx; set => _scx = value; }
-        public byte Ly { get => _ly; set => _ly = value; }
+        public byte Ly { get => _ly;}
         public byte Lyc { get => _lyc; set => _lyc = value; }
         public byte Dma { get => _dma; set => _dma = value; }
         public byte Bgp { get => _bgp; set => _bgp = value; }
@@ -96,10 +100,10 @@ namespace GameBoyEmu.PpuNamespace
         private bool SpriteEnable { get => (byte)((_lcdc & 0b0000_0010) >> 1) == 1; }
         private bool BgAndWindowEnable { get => (byte)((_lcdc & 0b0000_0001)) == 1; }
 
-        private bool LycEqualsLyInterruptEnable { get => (_stat & 0b0100_0000) == 0b0100_0000; }
-        private bool OamInterruptEnable { get => (_stat & 0b0010_0000) == 0b0010_0000; }
-        private bool VBlankInterruptEnable { get => (_stat & 0b0001_0000) == 0b0001_0000; }
-        private bool HBlankInterruptEnable { get => (_stat & 0b0000_1000) == 0b0000_1000; }
+        private bool LycEqualsLyInterruptEnable { get => (_stat & 0b0100_0000) >> 6 != 0; }
+        private bool OamInterruptEnable { get => (_stat & 0b0010_0000) >> 5 != 0; }
+        private bool VBlankInterruptEnable { get => (_stat & 0b0001_0000) >> 4 != 0; }
+        private bool HBlankInterruptEnable { get => (_stat & 0b0000_1000) >> 3 != 0; }
         private bool CoincidenceFlag { set => _stat = (byte)((_stat & 0b1111_1011) | (value ? 0b0000_0100 : 0)); }
         public byte PpuMode { set => _stat = (byte)((_stat & 0b1111_1100) | value); get => (byte)(_stat & 0b0000_0011); }
 
@@ -133,54 +137,43 @@ namespace GameBoyEmu.PpuNamespace
             //if (!LcdAndPpuEnable)
             //    return;
 
-            if (_ly == _lyc)
+            if (_ly == _lyc && LycEqualsLyInterruptEnable)
             {
+                CoincidenceFlag = true;
                 _interrupts.RequestStatInterrupt();
+            }
+            else
+            {
+                CoincidenceFlag = false;
             }
 
             _elapsedDots += 4;
             _totalElapsedDots += 4;
 
-            if (_ly >= 144)
+            if (_ly >= 144) //VBlank
             {
                 PpuMode = 1;
-                ChangeMode();
+                if (VBlankInterruptEnable)
+                    _interrupts.RequestStatInterrupt();
+                VerticalBlank();
             }
-            else if (_elapsedDots == 80)
+            else if (_elapsedDots == 80) // OamScan
             {
                 PpuMode = 2;
-                ChangeMode();
+                if (OamInterruptEnable)
+                    _interrupts.RequestStatInterrupt();
             }
-            else if (_elapsedDots == 172)
+            else if (_elapsedDots == 172) //DrawScanline
             {
                 PpuMode = 3;
-                ChangeMode();
+                DrawScanline();
             }
-            else if (_elapsedDots == 456)
+            else if (_elapsedDots == 456) //HBlank
             {
                 PpuMode = 0;
-                ChangeMode();
-            }
-        }
-
-        private void ChangeMode()
-        {
-            switch (PpuMode)
-            {
-                case 2:
-                    OamScan();
-                    break;
-                case 3:
-                    DrawPixels();
-                    break;
-                case 0:
-                    HorizontalBlank();
-                    break;
-                case 1:
-                    VerticalBlank();
-                    break;
-                default:
-                    break;
+                if (HBlankInterruptEnable)
+                    _interrupts.RequestStatInterrupt();
+                HorizontalBlank();
             }
         }
 
@@ -190,9 +183,9 @@ namespace GameBoyEmu.PpuNamespace
             _dmaHandler.Start();
         }
 
-        private void OamScan()
+
+        private void FetchSprites()
         {
-            PpuMode = 2;
             _currentAddress = 0xFE00;
 
             for (int i = 0; i < 40; i++)
@@ -214,9 +207,8 @@ namespace GameBoyEmu.PpuNamespace
             }
         }
 
-        private void DrawPixels()
+        private void DrawScanline()
         {
-            PpuMode = 3;
             while (_currentX < 160)
             {
                 byte tileNumber = GetTile();
@@ -230,8 +222,6 @@ namespace GameBoyEmu.PpuNamespace
 
         private void HorizontalBlank()
         {
-            PpuMode = 0;
-
             if (WindowEnable && _ly >= _wy)
             {
                 _windowsLineCounter++;
@@ -243,8 +233,6 @@ namespace GameBoyEmu.PpuNamespace
 
         private void VerticalBlank()
         {
-            PpuMode = 1;
-
             if (_ly == 144)
             {
                 _windowsLineCounter = 0;
@@ -296,7 +284,7 @@ namespace GameBoyEmu.PpuNamespace
                 int yOffset = ((_ly + _scy) & 0xFF) / 8;
                 int xOffset = (_currentX + (_scx / 8)) & 0x1F;
 
-                tilemapAddressOffset = (ushort)(((yOffset * 32) + xOffset ) & 0x3FF);
+                tilemapAddressOffset = (ushort)(((yOffset * 32) + xOffset) & 0x3FF);
             }
 
             tilemapAddress += tilemapAddressOffset;
@@ -367,7 +355,7 @@ namespace GameBoyEmu.PpuNamespace
             for (int i = 0; i < pixels; i++)
             {
                 byte pixel = _backgroudFifo.Dequeue();
-                _screen.RenderPixel(x: (byte)(_currentX - pixels + i ), y: _ly, pixel);
+                _screen.RenderPixel(x: (byte)(_currentX - pixels + i), y: _ly, pixel);
             }
         }
 
