@@ -142,7 +142,6 @@ namespace GameBoyEmu.MemoryNamespace
                             _ppu.Scx = value;
                             break;
                         case Ppu.LY_ADDRESS:
-                            _ppu.Ly = value;
                             break;
                         case Ppu.LYC_ADDRESS:
                             _ppu.Lyc = value;

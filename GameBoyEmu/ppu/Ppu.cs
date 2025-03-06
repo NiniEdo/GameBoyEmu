@@ -63,17 +63,22 @@ namespace GameBoyEmu.PpuNamespace
         private byte _wy;
         private byte _wx;
 
-        private int _currentX = 0;
+        private int _winY = 0;
         private int _windowsLineCounter = 0;
         private int _elapsedDots = 0;
         private int _totalElapsedDots = 0;
 
         FixedSizeQueue<byte> _backgroudFifo = new FixedSizeQueue<byte>(8);
-        FixedSizeQueue<byte> _spriteFifo = new FixedSizeQueue<byte>(8);
         List<Sprite> _spritesBuffer = new List<Sprite>();
-        List<byte> _pixelBuffer = new List<byte>();
+        Color[] _pixelBuffer = new Color[160];
 
-        ushort _currentAddress = 0xFE00;
+        private static readonly Color[] Colors = {
+            Color.FromArgb(0xE0, 0xF8, 0xD0),
+            Color.FromArgb(0x88, 0xC0, 0x70),
+            Color.FromArgb(0x34, 0x68, 0x56),
+            Color.FromArgb(0x08, 0x18, 0x20)
+        };
+
 
         public byte Lcdc { get => _lcdc; set => _lcdc = value; }
         public byte Stat
@@ -83,7 +88,7 @@ namespace GameBoyEmu.PpuNamespace
         }
         public byte Scy { get => _scy; set => _scy = value; }
         public byte Scx { get => _scx; set => _scx = value; }
-        public byte Ly { get => _ly;}
+        public byte Ly { get => _ly; }
         public byte Lyc { get => _lyc; set => _lyc = value; }
         public byte Dma { get => _dma; set => _dma = value; }
         public byte Bgp { get => _bgp; set => _bgp = value; }
@@ -91,7 +96,7 @@ namespace GameBoyEmu.PpuNamespace
         public byte Obp1 { get => _obp1; set => _obp1 = value; }
         public byte Wy { get => _wy; set => _wy = value; }
         public byte Wx { get => _wx; set => _wx = value; }
-        private bool LcdAndPpuEnable { get => (byte)((_lcdc & 0b1000_0000) >> 7) == 1; } //TODO: USE 
+        private bool LcdAndPpuEnable { get => (byte)((_lcdc & 0b1000_0000) >> 7) == 1; }
         private byte WindowTileMap { get => (byte)((_lcdc & 0b0100_0000) >> 6); }
         private bool WindowEnable { get => (byte)((_lcdc & 0b0010_0000) >> 5) == 1; }
         private byte BgAndWindowTileDataArea { get => (byte)((_lcdc & 0b0001_0000) >> 4); }
@@ -135,9 +140,11 @@ namespace GameBoyEmu.PpuNamespace
         public void Tick()
         {
             //if (!LcdAndPpuEnable)
+            //{
             //    return;
+            //}
 
-            if (_ly == _lyc && LycEqualsLyInterruptEnable)
+            if (_ly == _lyc && LycEqualsLyInterruptEnable && _ly != 0)
             {
                 CoincidenceFlag = true;
                 _interrupts.RequestStatInterrupt();
@@ -163,10 +170,10 @@ namespace GameBoyEmu.PpuNamespace
                 if (OamInterruptEnable)
                     _interrupts.RequestStatInterrupt();
             }
-            else if (_elapsedDots == 172) //DrawScanline
+            else if (_elapsedDots == 252) //DrawScanline
             {
+                RenderScanline();
                 PpuMode = 3;
-                DrawScanline();
             }
             else if (_elapsedDots == 456) //HBlank
             {
@@ -177,47 +184,64 @@ namespace GameBoyEmu.PpuNamespace
             }
         }
 
-
         public void StartDma()
         {
             _dmaHandler.Start();
         }
 
-
-        private void FetchSprites()
+        public void RenderScanline()
         {
-            _currentAddress = 0xFE00;
-
-            for (int i = 0; i < 40; i++)
-            {
-                Sprite spriteAttributes = FetchObjectAttributes(_currentAddress);
-
-                int objectSize = SpriteSize == 0 ? 8 : 16;
-                bool isSpriteVisible = spriteAttributes.X > 0 &&
-                    _ly + 16 >= spriteAttributes.Y &&
-                    _ly + 16 < (spriteAttributes.Y + objectSize)
-                    && _spritesBuffer.Count < 10;
-
-                if (isSpriteVisible && SpriteEnable)
-                {
-                    _spritesBuffer.Add(spriteAttributes);
-                }
-
-                _currentAddress += 4;
-            }
+            RenderBackground();
+            //RenderSprites();
+            _screen.RenderScanline(_pixelBuffer, _ly);
         }
 
-        private void DrawScanline()
+        private void RenderBackground()
         {
-            while (_currentX < 160)
+            if (!BgAndWindowEnable) //NOTE: Errore
             {
-                byte tileNumber = GetTile();
-                byte[] tileData = GetTileData(tileNumber);
-
-                PushToBackgroundFifo(tileData);
-
-                SendToLcd();
+                //NOTE: Draw White?
+                return;
             }
+
+            ushort tileDataAddress = (ushort)(BgAndWindowTileDataArea == 0 ? 0x9000 : 0x8000);
+            ushort backgroundTileMap = (ushort)(BgTileMapArea == 0 ? 0x9800 : 0x9C00);
+            ushort windowTileMap = (ushort)(WindowTileMap == 0 ? 0x9800 : 0x9C00); // NOTE: Errore
+            int windowX = _wx - 7;
+
+            bool windowDrawn = false;
+            bool canRenderWindow = _wy <= _ly && WindowEnable;
+
+            byte tileX = _scx;
+            byte tileY = (byte)(_ly + _scy); // NOTE: Errore
+            byte offsetY = (byte)(tileY & 7); // NOTE: Errore
+            ushort tilemap = backgroundTileMap;
+
+            for (int x = 0; x < _pixelBuffer.Length; x++)
+            {
+                if (!windowDrawn && (canRenderWindow && windowX <= x))
+                {
+                    windowDrawn = true;
+                    tileX = (byte)(x - windowX);
+                    tileY = (byte)_winY;
+                    offsetY = (byte)(tileY & 7);
+                    tilemap = windowTileMap;
+                }
+
+                byte tileIndex = _memory.ReadVramDirectly((ushort)(tilemap + (tileY / 8 * 32) + (tileX / 8)));
+                ushort offset = (ushort)((offsetY * 2) + (ushort)(BgAndWindowTileDataArea == 0 ? (sbyte)tileIndex * 16 : tileIndex * 16)); // NOTE: Errore
+                ushort tileDataLow = _memory.ReadVramDirectly((ushort)(tileDataAddress + offset));
+                ushort tileDataHigh = _memory.ReadVramDirectly((ushort)(tileDataAddress + offset + 1));
+
+                byte offsetX = (byte)((tileX & 7) ^ 7);
+
+                int color = ((tileDataHigh >> offsetX) & 1) << 1 | ((tileDataLow >> offsetX) & 1);
+
+                _pixelBuffer[x] = Colors[color];
+                tileX++;
+            }
+
+            _winY += windowDrawn ? 1 : 0;
         }
 
         private void HorizontalBlank()
@@ -228,7 +252,6 @@ namespace GameBoyEmu.PpuNamespace
             }
             _ly += 1;
             _elapsedDots = 0;
-            _currentX = 0;
         }
 
         private void VerticalBlank()
@@ -250,119 +273,12 @@ namespace GameBoyEmu.PpuNamespace
                 _ly += 1;
                 _elapsedDots = 0;
             }
-        }
 
-        private Sprite FetchObjectAttributes(ushort _currentAddress)
-        {
-            Sprite ObjectAttributes = new Sprite();
-
-            ObjectAttributes.Y = _memory.ReadOamDirectly(_currentAddress);
-            ObjectAttributes.X = _memory.ReadOamDirectly((ushort)(_currentAddress + 1));
-            ObjectAttributes.TileIndex = _memory.ReadOamDirectly((ushort)(_currentAddress + 2));
-            ObjectAttributes.Flags = _memory.ReadOamDirectly((ushort)(_currentAddress + 3));
-
-            return ObjectAttributes;
-        }
-
-        private byte GetTile()
-        {
-            ushort tilemapAddress;
-            ushort tilemapAddressOffset;
-            if (FetchingWindow())
-            {
-                tilemapAddress = (ushort)(WindowTileMap == 0 ? 0x9800 : 0x9C00);
-
-                int windowYOffset = _windowsLineCounter / 8;
-                int xOffset = _currentX & 0x1F;
-
-                tilemapAddressOffset = (ushort)(((windowYOffset * 32) + xOffset) & 0x3FF);
-            }
-            else
-            {
-                tilemapAddress = (ushort)(BgTileMapArea == 0 ? 0x9800 : 0x9C00);
-
-                int yOffset = ((_ly + _scy) & 0xFF) / 8;
-                int xOffset = (_currentX + (_scx / 8)) & 0x1F;
-
-                tilemapAddressOffset = (ushort)(((yOffset * 32) + xOffset) & 0x3FF);
-            }
-
-            tilemapAddress += tilemapAddressOffset;
-            return _memory.ReadVramDirectly(tilemapAddress);
-        }
-
-        private byte[] GetTileData(byte tileNumber)
-        {
-            ushort baseTileDataAddress;
-            if (BgAndWindowTileDataArea == 1)
-                baseTileDataAddress = (ushort)(0x8000 + (tileNumber * 16));
-            else
-                baseTileDataAddress = (ushort)(0x9000 + (sbyte)tileNumber * 16);
-
-            int lineOffset;
-            if (FetchingWindow())
-            {
-                lineOffset = 2 * (_windowsLineCounter % 8);
-            }
-            else
-            {
-                lineOffset = 2 * ((_ly + _scy) % 8);
-            }
-
-            byte lowByte = _memory.ReadVramDirectly((ushort)(baseTileDataAddress + lineOffset));
-            byte highByte = _memory.ReadVramDirectly((ushort)(baseTileDataAddress + lineOffset + 1));
-            byte[] data = { lowByte, highByte };
-
-            return data;
-        }
-
-        private void PushToBackgroundFifo(byte[] tileData)
-        {
-            int originalX = _currentX;
-
-            if (_backgroudFifo.Count == 0)
-            {
-                int pixelsToDiscard = _scx & 0x07;
-
-                for (int i = 7; i >= 0; i--)
-                {
-                    byte littleNumber = (byte)((tileData[0] >> i) & 0x01);
-                    byte bigNumber = (byte)(((tileData[1] >> i) & 0b0000_0001) << 1);
-
-                    byte pixelColor = (byte)(bigNumber | littleNumber);
-
-                    if (_currentX < pixelsToDiscard && originalX == 0)
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        _backgroudFifo.Enqueue(pixelColor);
-                    }
-                    catch
-                    {
-                        throw;
-                    }
-                    _currentX++;
-                }
-            }
+            _winY = 0;
         }
 
         private void SendToLcd()
         {
-            int pixels = _backgroudFifo.Count();
-            for (int i = 0; i < pixels; i++)
-            {
-                byte pixel = _backgroudFifo.Dequeue();
-                _screen.RenderPixel(x: (byte)(_currentX - pixels + i), y: _ly, pixel);
-            }
         }
-
-        private bool FetchingWindow()
-        {
-            return (WindowEnable && _currentX >= _wx - 7);
-        }
-
     }
 }

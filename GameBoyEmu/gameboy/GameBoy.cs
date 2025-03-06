@@ -46,7 +46,7 @@ namespace GameBoyEmu.gameboy
         public void Start()
         {
             Stopwatch timer = new Stopwatch();
-
+            _machineCycles.Tick();
             while (IsRunning)
             {
                 timer.Restart();

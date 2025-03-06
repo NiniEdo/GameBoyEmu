@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -47,7 +48,7 @@ namespace GameBoyEmu.ScreenNameSpace
                 return;
             }
 
-            _window = SDL_CreateWindow("SpecBoy", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            _window = SDL_CreateWindow("GameBoyEmu By Edoardo Nini", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                       SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WindowFlags.SDL_WINDOW_SHOWN);
             if (_window == IntPtr.Zero)
             {
@@ -63,31 +64,25 @@ namespace GameBoyEmu.ScreenNameSpace
             }
         }
 
-
-        private static readonly byte[][] GreenPalette = {
-            new byte[] { 155, 188, 15 },
-            new byte[] { 139, 172, 15 },
-            new byte[] { 48, 98, 48 },
-            new byte[] { 15, 56, 15 }
-        };
-
-        public void RenderPixel(byte x, byte y, byte pixel)
+        public void RenderScanline(Color[] scanline, int y)
         {
             if (_renderer == IntPtr.Zero)
                 return;
 
-            byte[] color = GreenPalette[pixel];
-            SDL.SDL_SetRenderDrawColor(_renderer, color[0], color[1], color[2], 255);
-
-            SDL.SDL_Rect pixelRect = new SDL.SDL_Rect
+            for (int x = 0; x < scanline.Length; x++)
             {
-                x = x * SCREEN_MULTIPLIER,
-                y = y * SCREEN_MULTIPLIER,
-                w = SCREEN_MULTIPLIER,
-                h = SCREEN_MULTIPLIER
-            };
+                SDL.SDL_SetRenderDrawColor(_renderer, scanline[x].R, scanline[x].G, scanline[x].B, 255);
 
-            SDL.SDL_RenderFillRect(_renderer, ref pixelRect);
+                SDL.SDL_Rect pixelRect = new SDL.SDL_Rect
+                {
+                    x = x * SCREEN_MULTIPLIER,
+                    y = y * SCREEN_MULTIPLIER,
+                    w = SCREEN_MULTIPLIER,
+                    h = SCREEN_MULTIPLIER
+                };
+
+                SDL.SDL_RenderFillRect(_renderer, ref pixelRect);
+            }
         }
 
         public void PresentScreen()
